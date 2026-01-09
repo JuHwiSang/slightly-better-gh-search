@@ -77,6 +77,19 @@ This project provides an upgraded version of GitHub Code Search with the followi
 - ✅ **올바른 접근**: 모든 `@import`는 `@theme` 블록 **이전**에 위치
 - **이유**: PostCSS/Tailwind CSS 요구사항 - @import는 최상단에 위치해야 함
 
+#### 6. **SvelteKit 5 이벤트 핸들러**
+- ❌ **잘못된 접근**: `on:click` 등 Svelte 전용 이벤트 핸들러 사용
+- ✅ **올바른 접근**: `onclick` 등 표준 DOM 이벤트 속성 사용
+- **이유**: SvelteKit 5부터 표준 DOM 이벤트 속성 지원, 더 간결하고 표준에 가까움
+- **구현 예시**:
+  ```svelte
+  <!-- 올바른 방법 -->
+  <button onclick={() => window.history.back()}>Back</button>
+  
+  <!-- 피해야 할 방법 -->
+  <button on:click={() => window.history.back()}>Back</button>
+  ```
+
 ### 📋 개발 체크리스트
 
 새로운 UI 요소 구현 시:

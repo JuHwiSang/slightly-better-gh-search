@@ -1,14 +1,41 @@
 <script lang="ts">
 	import IconLucideLogOut from '~icons/lucide/log-out';
 	import IconLucideUserMinus from '~icons/lucide/user-minus';
+	import IconLucideArrowLeft from '~icons/lucide/arrow-left';
+	import IconLucideAlertTriangle from '~icons/lucide/alert-triangle';
 	import ProfileCard from '$lib/components/ProfileCard.svelte';
 	import UsageCard from '$lib/components/UsageCard.svelte';
+
+	let deleteDialog: HTMLDialogElement | undefined;
+
+	function openDeleteDialog() {
+		deleteDialog?.showModal();
+	}
+
+	function closeDeleteDialog() {
+		deleteDialog?.close();
+	}
+
+	function handleDeleteAccount() {
+		// TODO: 실제 계정 삭제 로직 구현
+		console.log('Account deleted');
+		closeDeleteDialog();
+	}
 </script>
 
 <div class="font-display flex min-h-screen flex-col items-center bg-background-dark">
 	<div class="flex w-full max-w-[640px] flex-col gap-8 px-4 py-8 md:py-12">
-		<!-- Header -->
+		<!-- Header with Back Button -->
 		<header class="flex flex-col gap-2">
+			<div class="mb-2">
+				<button
+					onclick={() => window.history.back()}
+					class="inline-flex items-center gap-2 text-text-muted transition-colors hover:text-white"
+				>
+					<IconLucideArrowLeft class="h-5 w-5" />
+					<span class="text-sm font-medium">Back</span>
+				</button>
+			</div>
 			<h1 class="text-3xl font-bold tracking-tight text-white">Profile Settings</h1>
 			<p class="text-base text-text-muted">
 				Manage your GitHub repository connections and account status.
@@ -38,7 +65,8 @@
 
 			<div class="flex flex-col gap-3">
 				<button
-					class="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-lg font-medium text-red-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
+					onclick={openDeleteDialog}
+					class="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-red-600 bg-red-600/10 font-bold text-red-500 transition-all hover:border-red-500 hover:bg-red-600/20 hover:text-red-400"
 				>
 					<IconLucideUserMinus class="h-5 w-5" />
 					<span>Delete account</span>
@@ -49,4 +77,42 @@
 			</div>
 		</section>
 	</div>
+
+	<!-- Delete Confirmation Dialog -->
+	<dialog
+		bind:this={deleteDialog}
+		class="rounded-xl border border-slate-700 bg-[#1a2230] p-0 backdrop:bg-black/50"
+	>
+		<div class="flex w-[400px] max-w-[90vw] flex-col gap-6 p-6">
+			<!-- Header -->
+			<div class="flex items-start gap-4">
+				<div class="rounded-full bg-red-500/10 p-3">
+					<IconLucideAlertTriangle class="h-6 w-6 text-red-500" />
+				</div>
+				<div class="flex-1">
+					<h3 class="text-xl font-bold text-white">Delete Account</h3>
+					<p class="mt-2 text-sm leading-relaxed text-text-muted">
+						Are you sure you want to delete your account? This action cannot be undone and will
+						permanently remove all your data, including saved repository settings and API keys.
+					</p>
+				</div>
+			</div>
+
+			<!-- Actions -->
+			<div class="flex gap-3">
+				<button
+					onclick={closeDeleteDialog}
+					class="flex h-11 flex-1 items-center justify-center rounded-lg border border-slate-700 bg-[#232f48] font-medium text-white transition-colors hover:bg-[#2a3855]"
+				>
+					Cancel
+				</button>
+				<button
+					onclick={handleDeleteAccount}
+					class="flex h-11 flex-1 items-center justify-center rounded-lg border-2 border-red-600 bg-red-600 font-bold text-white transition-all hover:border-red-500 hover:bg-red-500"
+				>
+					Delete Account
+				</button>
+			</div>
+		</div>
+	</dialog>
 </div>
