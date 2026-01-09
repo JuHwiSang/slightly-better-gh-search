@@ -44,8 +44,5 @@
 		"overrides": {
 			"cookie": "^0.7.0"
 		}
-	},
-	"dependencies": {
-		"jsep": "^1.4.0"
 	}
 }
