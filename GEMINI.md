@@ -140,7 +140,7 @@ This project provides an upgraded version of GitHub Code Search with the followi
 - **목적**: 사용자 정보 및 계정 관리
 - **주요 요소**:
   - **뒤로가기 버튼** (좌측 상단): 브라우저 히스토리 뒤로가기 (`window.history.back()`)
-  - 프로필 사진 (편집 가능)
+  - 프로필 사진
   - 사용자 이름 및 이메일
   - GitHub 연동 상태 표시
   - API 사용량 표시 (프로그레스 바)
@@ -185,8 +185,7 @@ This project provides an upgraded version of GitHub Code Search with the followi
   - 이전/다음 버튼
 
 - **ProfileCard** (프로필 페이지)
-  - 사용자 정보 표시
-  - 편집 기능
+  - 사용자 정보 표시 (프로필 사진, 이름, 이메일, GitHub 연동 상태)
 
 - **UsageCard** (프로필 페이지)
   - API 사용량 시각화
@@ -279,5 +278,5 @@ slightly-better-gh-search/
 
 ---
 
-*Last Updated: 2026-01-09*  
+*Last Updated: 2026-01-10*  
 *This file should be updated whenever the user identifies issues or provides important feedback.*

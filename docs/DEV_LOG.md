@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-01-10
+
+### UI Simplification - Profile Page
+- **변경사항**: ProfileCard에서 프로필 사진 편집 버튼 제거
+- **이유**: 불필요한 UI 요소 제거 (UI 단순화 원칙)
+- **영향받은 파일**:
+  - `ProfileCard.svelte`: 편집 버튼 및 관련 wrapper div 제거
+  - `IconLucidePencil` import 제거
+- **배경**: 프로필 사진 편집 기능이 실제로 구현되지 않았으며, 현재 단계에서 불필요한 UI 요소로 판단
+
+---
+
 ## 2026-01-09
 
 ### Icon System Implementation

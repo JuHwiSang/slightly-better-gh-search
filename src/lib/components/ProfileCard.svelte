@@ -1,5 +1,4 @@
 <script lang="ts">
-	import IconLucidePencil from '~icons/lucide/pencil';
 	import IconLucideGitBranch from '~icons/lucide/git-branch';
 
 	interface Props {
@@ -20,17 +19,10 @@
 <section class="overflow-hidden rounded-xl border border-border-dark bg-card-dark shadow-sm">
 	<div class="flex flex-col items-center gap-6 p-6 md:p-8">
 		<!-- Profile Picture -->
-		<div class="group relative">
-			<div
-				class="h-32 w-32 rounded-full bg-cover bg-center ring-4 ring-slate-700"
-				style="background-image: url('{avatarUrl}');"
-			></div>
-			<div
-				class="absolute right-0 bottom-0 flex cursor-pointer items-center justify-center rounded-full border-4 border-card-dark bg-accent-blue p-2 text-white transition-colors hover:bg-blue-500"
-			>
-				<IconLucidePencil class="h-4 w-4" />
-			</div>
-		</div>
+		<div
+			class="h-32 w-32 rounded-full bg-cover bg-center ring-4 ring-slate-700"
+			style="background-image: url('{avatarUrl}');"
+		></div>
 
 		<!-- User Info -->
 		<div class="space-y-1 text-center">
