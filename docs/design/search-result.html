@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Code Search - Results</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#0d1117",
+                        "card-dark": "#161b22",
+                        "border-dark": "#30363d",
+                        "code-bg": "#0d1117",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["Fira Code", "monospace"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0d1117; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #30363d; 
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #586069; 
+        }
+        .line-number {
+            user-select: none;
+            color: #484f58;
+            text-align: right;
+            padding-right: 1rem;
+            min-width: 2.5rem;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white min-h-screen flex flex-col overflow-x-hidden">
+<header class="w-full border-b border-gray-200 dark:border-border-dark bg-white dark:bg-[#161b22]">
+<div class="max-w-[1280px] mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="text-primary dark:text-white">
+<span class="material-symbols-outlined text-[32px]">terminal</span>
+</div>
+<h1 class="text-xl font-bold tracking-tight">Code Search</h1>
+</div>
+<div class="flex items-center gap-4">
+<div class="size-8 rounded-full bg-cover bg-center border border-gray-200 dark:border-slate-700" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAYwvGM7U5dsJU5Ya-2RMiPMzmb_LC6ZB963qVAD8Lmw2HAaHNsvO2u_plZpbfz-Hxgm-O7WyplSJQJeShuuYDwQ4TK1R9hCZ57Sy3l6dQs229AW3EfzScVrzVSeQaE_H6ybt9M4-Io4ftktFaKj-SN7JF23-rL4WpkhjDxMn6MYJXevHMYIm-BUXAvsiZC75e3Cyh52h5odghNa5L8S70VSjF1VGfUovCwHxrwYWXeVBOSXDSJs3P9KbE3jeakNuNmzuTSAv6UzYE');"></div>
+</div>
+</div>
+</header>
+<main class="flex-1 w-full max-w-[1024px] mx-auto px-4 py-8 flex flex-col gap-6">
+<section class="flex flex-col gap-4">
+<div class="w-full rounded-lg bg-[#0d1117] border border-gray-300 dark:border-border-dark shadow-sm overflow-hidden font-mono group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
+<div class="p-6 flex flex-col gap-3">
+<div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-0">
+<label class="text-green-500 font-bold select-none shrink-0 w-24" for="term-search">
+<span class="mr-2 text-slate-500">&gt;</span>Search:
+                </label>
+<input autocomplete="off" class="flex-1 bg-transparent border-none p-0 text-slate-200 placeholder-slate-600 focus:ring-0 text-base font-medium" id="term-search" placeholder="Enter keywords..." type="text" value="react router nested routes"/>
+</div>
+<div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-0">
+<label class="text-blue-500 font-bold select-none shrink-0 w-24" for="term-filter">
+<span class="mr-2 text-slate-500">&gt;</span>Filter:
+                </label>
+<input autocomplete="off" class="flex-1 bg-transparent border-none p-0 text-slate-400 focus:text-slate-200 placeholder-slate-700 focus:ring-0 text-sm sm:text-base font-medium transition-colors" id="term-filter" placeholder="Regex filter..." type="text" value="lang:ts path:**/router.ts"/>
+</div>
+</div>
+</div>
+</section>
+<div class="border-b border-gray-200 dark:border-border-dark pb-2 mt-2 flex justify-between items-center">
+<h2 class="text-sm font-mono text-slate-500 dark:text-slate-400">Showing 2,341 results</h2>
+</div>
+<div class="flex flex-col gap-8">
+<article class="flex flex-col gap-2">
+<div class="flex items-center gap-2 text-sm">
+<div class="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[18px]">folder_open</span>
+<a class="font-semibold text-primary hover:underline text-base" href="#">remix-run/react-router</a>
+</div>
+<span class="text-slate-400 dark:text-slate-600">/</span>
+<span class="text-slate-500 dark:text-slate-400 text-xs font-mono truncate">packages/react-router/lib/router.ts</span>
+</div>
+<div class="bg-slate-100 dark:bg-code-bg border border-gray-200 dark:border-border-dark rounded-md overflow-hidden text-xs sm:text-sm font-mono leading-relaxed custom-scrollbar overflow-x-auto">
+<div class="flex py-2">
+<div class="flex flex-col select-none border-r border-gray-200 dark:border-border-dark bg-slate-50 dark:bg-code-bg">
+<span class="line-number">142</span>
+<span class="line-number">143</span>
+<span class="line-number">144</span>
+<span class="line-number">145</span>
+<span class="line-number">146</span>
+</div>
+<div class="flex flex-col px-4 text-slate-800 dark:text-slate-300 whitespace-pre">
+<div><span class="text-purple-600 dark:text-purple-400">export function</span> <span class="text-blue-600 dark:text-blue-400">matchRoutes</span>(</div>
+<div>  routes: <span class="text-yellow-600 dark:text-yellow-400">RouteObject</span>[],</div>
+<div>  locationArg: <span class="text-yellow-600 dark:text-yellow-400">Partial</span>&lt;<span class="text-yellow-600 dark:text-yellow-400">Location</span>&gt; | <span class="text-green-600 dark:text-green-400">string</span>,</div>
+<div>  basename?: <span class="text-green-600 dark:text-green-400">string</span></div>
+<div>): <span class="text-yellow-600 dark:text-yellow-400">RouteMatch</span>[] | <span class="text-purple-600 dark:text-purple-400">null</span> { ... }</div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono">
+<div class="flex items-center gap-1.5">
+<span class="size-2 rounded-full bg-[#3178c6]"></span>
+<span>TypeScript</span>
+</div>
+<span>51.2k stars</span>
+<span>2h ago</span>
+</div>
+</article>
+<article class="flex flex-col gap-2">
+<div class="flex items-center gap-2 text-sm">
+<div class="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[18px]">folder_open</span>
+<a class="font-semibold text-primary hover:underline text-base" href="#">facebook/react</a>
+</div>
+<span class="text-slate-400 dark:text-slate-600">/</span>
+<span class="text-slate-500 dark:text-slate-400 text-xs font-mono truncate">packages/react-dom/src/server/ReactDOMLegacyServerBrowser.js</span>
+</div>
+<div class="bg-slate-100 dark:bg-code-bg border border-gray-200 dark:border-border-dark rounded-md overflow-hidden text-xs sm:text-sm font-mono leading-relaxed custom-scrollbar overflow-x-auto">
+<div class="flex py-2">
+<div class="flex flex-col select-none border-r border-gray-200 dark:border-border-dark bg-slate-50 dark:bg-code-bg">
+<span class="line-number">65</span>
+<span class="line-number">66</span>
+<span class="line-number">67</span>
+<span class="line-number">68</span>
+</div>
+<div class="flex flex-col px-4 text-slate-800 dark:text-slate-300 whitespace-pre">
+<div><span class="text-purple-600 dark:text-purple-400">function</span> <span class="text-blue-600 dark:text-blue-400">renderToNodeStream</span>() {</div>
+<div> <span class="text-purple-600 dark:text-purple-400">throw</span> <span class="text-purple-600 dark:text-purple-400">new</span> <span class="text-yellow-600 dark:text-yellow-400">Error</span>(</div>
+<div> <span class="text-green-600 dark:text-green-400">'ReactDOMServer.renderToNodeStream(): The streaming API is not available '</span> +</div>
+<div> <span class="text-green-600 dark:text-green-400">'in the browser env.'</span></div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono">
+<div class="flex items-center gap-1.5">
+<span class="size-2 rounded-full bg-[#f1e05a]"></span>
+<span>JavaScript</span>
+</div>
+<span>213k stars</span>
+<span>1d ago</span>
+</div>
+</article>
+<article class="flex flex-col gap-2">
+<div class="flex items-center gap-2 text-sm">
+<div class="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[18px]">folder_open</span>
+<a class="font-semibold text-primary hover:underline text-base" href="#">vercel/next.js</a>
+</div>
+<span class="text-slate-400 dark:text-slate-600">/</span>
+<span class="text-slate-500 dark:text-slate-400 text-xs font-mono truncate">packages/next/src/client/components/router-reducer/router-reducer-types.ts</span>
+</div>
+<div class="bg-slate-100 dark:bg-code-bg border border-gray-200 dark:border-border-dark rounded-md overflow-hidden text-xs sm:text-sm font-mono leading-relaxed custom-scrollbar overflow-x-auto">
+<div class="flex py-2">
+<div class="flex flex-col select-none border-r border-gray-200 dark:border-border-dark bg-slate-50 dark:bg-code-bg">
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+</div>
+<div class="flex flex-col px-4 text-slate-800 dark:text-slate-300 whitespace-pre">
+<div><span class="text-purple-600 dark:text-purple-400">export type</span> <span class="text-yellow-600 dark:text-yellow-400">ReadonlyURLSearchParams</span> = <span class="text-yellow-600 dark:text-yellow-400">URLSearchParams</span> &amp; {</div>
+<div> <span class="text-blue-600 dark:text-blue-400">append</span>: <span class="text-purple-600 dark:text-purple-400">never</span></div>
+<div> <span class="text-blue-600 dark:text-blue-400">delete</span>: <span class="text-purple-600 dark:text-purple-400">never</span></div>
+<div> <span class="text-blue-600 dark:text-blue-400">set</span>: <span class="text-purple-600 dark:text-purple-400">never</span></div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono">
+<div class="flex items-center gap-1.5">
+<span class="size-2 rounded-full bg-[#3178c6]"></span>
+<span>TypeScript</span>
+</div>
+<span>114k stars</span>
+<span>3d ago</span>
+</div>
+</article>
+</div>
+<div class="flex justify-center mt-8 pb-10">
+<nav aria-label="Pagination" class="flex items-center gap-1 bg-white dark:bg-[#161b22] border border-gray-200 dark:border-border-dark rounded-lg p-1">
+<a class="p-2 rounded hover:bg-slate-100 dark:hover:bg-[#21262d] text-slate-500 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined text-base">chevron_left</span>
+</a>
+<a class="px-3 py-1 rounded bg-primary text-white font-medium text-xs" href="#">1</a>
+<a class="px-3 py-1 rounded hover:bg-slate-100 dark:hover:bg-[#21262d] text-slate-600 dark:text-slate-300 font-medium text-xs transition-colors" href="#">2</a>
+<a class="px-3 py-1 rounded hover:bg-slate-100 dark:hover:bg-[#21262d] text-slate-600 dark:text-slate-300 font-medium text-xs transition-colors" href="#">3</a>
+<span class="px-2 text-slate-400 text-xs">...</span>
+<a class="px-3 py-1 rounded hover:bg-slate-100 dark:hover:bg-[#21262d] text-slate-600 dark:text-slate-300 font-medium text-xs transition-colors" href="#">10</a>
+<a class="p-2 rounded hover:bg-slate-100 dark:hover:bg-[#21262d] text-slate-500 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined text-base">chevron_right</span>
+</a>
+</nav>
+</div>
+</main>
+</body></html>

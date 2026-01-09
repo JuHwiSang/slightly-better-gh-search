@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Personal Profile</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen font-display flex flex-col items-center">
+<div class="w-full max-w-[640px] px-4 py-8 md:py-12 flex flex-col gap-8">
+<header class="flex flex-col gap-2">
+<h1 class="text-slate-900 dark:text-white text-3xl font-bold tracking-tight">Profile Settings</h1>
+<p class="text-slate-500 dark:text-slate-400 text-base">Manage your GitHub repository connections and account status.</p>
+</header>
+<section class="bg-white dark:bg-[#1a2230] rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+<div class="p-6 md:p-8 flex flex-col items-center gap-6">
+<div class="relative group">
+<div class="h-32 w-32 rounded-full bg-cover bg-center ring-4 ring-slate-100 dark:ring-slate-700" data-alt="User profile picture showing a young professional man" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAj1HqtmE6knAzHBmnRtAGPzJnEU6cvcH5rKpHC4-xSFXSR3bOIBVCqSkt8E-la4E1Re1HYKrj3dklpDWhIXiQzvG_8f--L-sdModZ0XhbOvRWW7Czks6BSXuDmjEWX6uwNy8ARelfiM0wpz0EidkEUTeXzHMgM-sNjGjBVVw3jrR673CKHdaqSN7JVFIaoa-aSKZ2IM5_GDvtf2GmUP15JoH8xd1dgPw0_bZ2RymjzDsE_fZBtZkpF_XwPYBbibH6RGxp7kp3NhpI");'></div>
+<div class="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full border-4 border-white dark:border-[#1a2230] flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">edit</span>
+</div>
+</div>
+<div class="text-center space-y-1">
+<h2 class="text-2xl font-bold text-slate-900 dark:text-white">Dev Kim</h2>
+<p class="text-slate-500 dark:text-slate-400 font-medium">dev_kim@example.com</p>
+<div class="pt-2">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium">
+<span class="material-symbols-outlined text-[18px]">hub</span>
+                            GitHub Connected
+                        </span>
+</div>
+</div>
+</div>
+</section>
+<section class="bg-white dark:bg-[#1a2230] rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 md:p-8">
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-primary text-2xl">bar_chart</span>
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">API Usage</h3>
+</div>
+<div class="flex flex-col gap-4">
+<div class="flex justify-between items-end">
+<div class="flex flex-col">
+<span class="text-slate-500 dark:text-slate-400 text-sm mb-1">Requests this month</span>
+<span class="text-slate-900 dark:text-white text-3xl font-bold font-mono tracking-tight">750 <span class="text-slate-400 dark:text-slate-600 text-lg font-normal">/ 1000</span></span>
+</div>
+<span class="text-primary font-bold bg-primary/10 px-2 py-1 rounded text-sm mb-1">75% Used</span>
+</div>
+<div class="h-3 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-500 ease-out" style="width: 75%;"></div>
+</div>
+<div class="flex items-start gap-2 mt-1">
+<span class="material-symbols-outlined text-slate-400 text-sm mt-0.5">info</span>
+<p class="text-slate-500 dark:text-slate-400 text-sm leading-snug">
+                        API usage resets automatically on the 1st of each month. Additional charges may apply if limits are exceeded.
+                    </p>
+</div>
+</div>
+</section>
+<section class="flex flex-col gap-4">
+<button class="w-full flex items-center justify-center gap-2 bg-white dark:bg-[#232f48] hover:bg-slate-50 dark:hover:bg-[#2a3855] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-white font-bold h-12 rounded-lg transition-colors cursor-pointer">
+<span class="material-symbols-outlined">logout</span>
+<span>Log out</span>
+</button>
+<div class="relative py-2">
+<div aria-hidden="true" class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-slate-200 dark:border-slate-800"></div>
+</div>
+</div>
+<div class="flex flex-col gap-3">
+<button class="w-full flex items-center justify-center gap-2 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 font-medium h-12 rounded-lg transition-colors cursor-pointer">
+<span class="material-symbols-outlined">person_remove</span>
+<span>Delete account</span>
+</button>
+<p class="text-center text-xs text-slate-400 dark:text-slate-500">
+                    Deleting your account will permanently remove all saved repository settings and API keys.
+                </p>
+</div>
+</section>
+</div>
+
+</body></html>

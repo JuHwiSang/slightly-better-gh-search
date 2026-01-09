@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GitScout - Repository Search</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-dark": "#0d1117", 
+                        "terminal-panel": "#161b22",
+                        "terminal-border": "#30363d",
+                        "accent-green": "#2ea043",
+                        "accent-blue": "#58a6ff",
+                        "text-muted": "#8b949e",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace", "ui-monospace", "SFMono-Regular"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem", 
+                        "lg": "0.5rem", 
+                        "xl": "0.75rem", 
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-dark text-white font-mono overflow-x-hidden min-h-screen flex flex-col selection:bg-accent-blue/30 selection:text-white">
+<header class="flex items-center justify-between whitespace-nowrap px-6 py-6 absolute top-0 w-full z-50">
+<div class="flex items-center gap-3 select-none">
+<span class="material-symbols-outlined text-2xl text-accent-green">terminal</span>
+<h2 class="text-white text-lg font-bold tracking-tight">GitScout_</h2>
+</div>
+<div class="flex items-center gap-6">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-10 border border-gray-700 cursor-pointer hover:border-accent-blue transition-colors" data-alt="User profile avatar showing a smiling person" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDhxkYN8TwKhWqYoAQSBpvxemX58MXfpqWv0b-UZNQWif1mYU6jWqfBnU12BhWdALgoyXzbKvM9wIFS7igui7GyYiHaBDnyeLIzNSbL1fcCqWjaGZlroyC_E0MVkRHeJMvsJvMzdGUWA9fWR5MKrHIFCoPXNHhXpsN3NUrpL-ljcZnAEVhIfD7u8Hz6txaeqn9oCQp5VRM1YtiLS_0BBYr8GNv4miVYL6H-QFlMxgUxu7_wtzNpuFKNgPaIv3GFQuXb58yzzlgL39A");'>
+</div>
+</div>
+</header>
+<main class="flex-1 flex flex-col items-center justify-center px-4 md:px-8 w-full max-w-4xl mx-auto py-12 relative">
+<div class="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-20"></div>
+<div class="w-full flex flex-col items-center gap-10 relative z-10">
+<div class="text-center space-y-3">
+<h1 class="text-4xl md:text-5xl font-bold text-white tracking-tight">
+<span class="text-gray-600">&lt;</span>Search<span class="text-accent-blue">Repos</span> /<span class="text-gray-600">&gt;</span>
+</h1>
+<p class="text-text-muted text-sm md:text-base">
+                Initialize query sequence.
+            </p>
+</div>
+<div class="w-full max-w-2xl">
+<div class="bg-terminal-panel border border-terminal-border rounded-lg shadow-2xl overflow-hidden ring-1 ring-white/5">
+<div class="p-6 md:p-8 flex flex-col gap-5">
+<div class="group flex items-baseline gap-4">
+<label class="text-accent-green font-bold text-lg select-none min-w-[70px] text-right">Search:</label>
+<input autofocus="" class="flex-1 bg-transparent border-none p-0 text-white placeholder-gray-700 focus:ring-0 text-lg font-mono caret-accent-green" placeholder="enter keyword..." type="text"/>
+</div>
+<div class="group flex items-baseline gap-4">
+<label class="text-accent-blue font-bold text-lg select-none min-w-[70px] text-right">Filter:</label>
+<input class="flex-1 bg-transparent border-none p-0 text-white placeholder-gray-700 focus:ring-0 text-lg font-mono caret-accent-blue" placeholder="regex pattern..." type="text"/>
+</div>
+</div>
+<div class="bg-[#0f1318] border-t border-terminal-border px-6 py-3 flex items-center justify-between text-xs text-text-muted font-mono select-none">
+<div class="flex gap-4">
+<span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-accent-green animate-pulse"></span> READY</span>
+<span class="hidden sm:inline">MODE: REGEX_ENABLED</span>
+</div>
+<button class="hover:text-white transition-colors flex items-center gap-2 uppercase tracking-wider group">
+                        Execute <span class="material-symbols-outlined text-sm group-hover:translate-x-0.5 transition-transform">keyboard_return</span>
+</button>
+</div>
+</div>
+<p class="text-center text-gray-600 text-xs mt-6 font-mono">
+                [TAB] to switch fields • [ENTER] to execute
+            </p>
+</div>
+</div>
+</main>
+
+</body></html>
