@@ -40,9 +40,52 @@ This project provides an upgraded version of GitHub Code Search with the followi
 
 ## Common Mistakes to Avoid
 
-> **Note**: This section will be populated as the user provides feedback during development.
+### 🚨 Critical Lessons from Development
 
-<!-- User-reported issues will be documented here -->
+#### 1. **디자인 참고 파일 사용법**
+- ❌ **잘못된 접근**: 디자인 참고 파일(`docs/design/*.html`)을 **그대로** 복사
+- ✅ **올바른 접근**: 디자인 파일은 **가이드**일 뿐, 프로젝트에 맞게 **적절히 변형**
+- **이유**: 디자인 파일은 AI가 만든 예시일 뿐이며, 실제 프로젝트 요구사항과 다를 수 있음
+- **실제 사례**: 
+  - `SearchRepos` 타이틀을 그대로 사용 → 실제 프로젝트명 "Slightly Better GH Search"로 변경 필요
+  - READY/MODE 상태 표시를 그대로 구현 → 불필요한 요소로 제거됨
+
+#### 2. **브랜딩 및 상표 관리**
+- ❌ **잘못된 접근**: 타이틀에 "GitHub" 전체 단어 사용
+- ✅ **올바른 접근**: 타이틀은 "GH"로 축약, 부제목에만 "GitHub" 명시
+- **이유**: GitHub 상표권 문제 회피
+- **구현 예시**:
+  ```
+  타이틀: "Slightly Better GH Search"
+  부제목: "Enhanced code search for GitHub with advanced filtering"
+  ```
+
+#### 3. **UI 단순화 원칙**
+- ❌ **잘못된 접근**: 디자인에 있는 모든 요소 구현 (READY, MODE 등)
+- ✅ **올바른 접근**: 실제로 필요한 기능만 구현, 불필요한 UI 요소 제거
+- **판단 기준**: "이 요소가 사용자에게 실질적인 가치를 제공하는가?"
+- **제거된 예시**: READY 상태 표시, MODE: REGEX_ENABLED 텍스트
+
+#### 4. **아이콘 시스템**
+- ❌ **잘못된 접근**: Material Symbols 폰트를 텍스트로 사용 (`<span>icon_name</span>`)
+- ✅ **올바른 접근**: unplugin-icons로 실제 아이콘 컴포넌트 사용
+- **이유**: 텍스트 기반 아이콘은 로딩 전까지 아이콘 이름만 표시됨
+- **구현**: `~icons/lucide/*` 경로로 import하여 컴포넌트로 사용
+
+#### 5. **CSS Import 순서**
+- ❌ **잘못된 접근**: `@theme` 블록 후에 `@import` 사용
+- ✅ **올바른 접근**: 모든 `@import`는 `@theme` 블록 **이전**에 위치
+- **이유**: PostCSS/Tailwind CSS 요구사항 - @import는 최상단에 위치해야 함
+
+### 📋 개발 체크리스트
+
+새로운 UI 요소 구현 시:
+1. [ ] 디자인 참고 파일을 **참고**만 하고, 프로젝트 요구사항에 맞게 조정했는가?
+2. [ ] 상표권 문제가 없는가? (GitHub → GH 등)
+3. [ ] 모든 UI 요소가 실제로 필요한가?
+4. [ ] 아이콘은 컴포넌트로 구현했는가?
+5. [ ] CSS import 순서가 올바른가?
+
 
 ## Project Structure
 
@@ -194,7 +237,7 @@ slightly-better-gh-search/
 - 디자인 참고 파일의 **터미널/코드 에디터 테마** 유지
 - 다크 모드 기본
 - 모노스페이스 폰트 (JetBrains Mono, Fira Code)
-- Material Symbols 아이콘
+- **아이콘**: Lucide 아이콘 (unplugin-icons 사용)
 - Tailwind CSS 사용 (디자인 파일에서 사용 중)
 
 #### 5. **배포 구조** (ADR-001 기반)

@@ -1,1 +1,50 @@
 @import 'tailwindcss';
+
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@theme {
+	/* Custom Colors - Terminal Theme */
+	--color-background-dark: #0d1117;
+	--color-terminal-panel: #161b22;
+	--color-terminal-border: #30363d;
+	--color-accent-green: #2ea043;
+	--color-accent-blue: #58a6ff;
+	--color-text-muted: #8b949e;
+	--color-card-dark: #161b22;
+	--color-border-dark: #30363d;
+	--color-code-bg: #0d1117;
+
+	/* Font Families */
+	--font-family-display: 'Inter', sans-serif;
+	--font-family-mono: 'JetBrains Mono', 'Fira Code', monospace, ui-monospace, 'SFMono-Regular';
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+	height: 8px;
+	width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+	background: #0d1117;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+	background: #30363d;
+	border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+	background: #586069;
+}
+
+/* Line Number Styling */
+.line-number {
+	user-select: none;
+	color: #484f58;
+	text-align: right;
+	padding-right: 1rem;
+	min-width: 2.5rem;
+}
