@@ -139,16 +139,21 @@ This project provides an upgraded version of GitHub Code Search with the followi
 #### 3. **프로필 페이지** (`/profile`)
 - **목적**: 사용자 정보 및 계정 관리
 - **주요 요소**:
+  - **뒤로가기 버튼** (좌측 상단): 브라우저 히스토리 뒤로가기 (`window.history.back()`)
   - 프로필 사진 (편집 가능)
   - 사용자 이름 및 이메일
   - GitHub 연동 상태 표시
   - API 사용량 표시 (프로그레스 바)
   - 로그아웃 버튼
-  - 계정 탈퇴 버튼
+  - **계정 탈퇴 버튼**: 클릭 시 확인 다이얼로그 표시
+    - Native HTML `<dialog>` 요소 사용
+    - 경고 아이콘과 명확한 경고 메시지
+    - Cancel / Delete Account 버튼
 - **디자인 참고**: `docs/design/profile.html`
   - 카드 기반 레이아웃
   - 사용량 시각화 (프로그레스 바)
-  - 위험한 액션(탈퇴)은 시각적으로 구분
+  - 위험한 액션(탈퇴)은 시각적으로 구분 (빨간색 테두리 + 배경)
+  - 삭제 확인 다이얼로그는 화면 중앙에 표시
 
 ### Component Architecture
 
