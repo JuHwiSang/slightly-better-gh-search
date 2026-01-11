@@ -28,9 +28,7 @@
 			<!-- Search Bar -->
 			<div class="w-full max-w-2xl">
 				<SearchBar variant="main" />
-				<p class="mt-6 text-center font-mono text-xs text-gray-600">
-					[TAB] to switch fields • [ENTER] to execute
-				</p>
+				<p class="mt-6 text-center font-mono text-xs text-gray-600">[ENTER] to execute</p>
 			</div>
 		</div>
 	</main>

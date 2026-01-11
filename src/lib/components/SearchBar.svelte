@@ -12,6 +12,9 @@
 
 	let { variant = 'main', query = $bindable(''), filter = $bindable('') }: Props = $props();
 
+	// Reactive state for button disabled status
+	let isQueryEmpty = $derived(!query.trim());
+
 	// TODO: Replace with actual GitHub OAuth login
 	function handleGitHubLogin() {
 		console.log('GitHub login clicked');
@@ -19,9 +22,8 @@
 	}
 
 	function handleExecute() {
-		// Validate query is not empty
+		// Don't execute if query is empty
 		if (!query.trim()) {
-			alert('Please enter a search query');
 			return;
 		}
 
@@ -31,6 +33,16 @@
 		params.set('filter', filter.trim());
 
 		goto(`/search?${params.toString()}`);
+	}
+
+	function handleKeyDown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			if (authState.isAuthenticated) {
+				handleExecute();
+			} else {
+				handleGitHubLogin();
+			}
+		}
 	}
 </script>
 
@@ -50,6 +62,7 @@
 				id="search-input"
 				type="text"
 				bind:value={query}
+				onkeydown={handleKeyDown}
 				placeholder="enter keyword..."
 				class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-500 caret-accent-green focus:ring-0"
 			/>
@@ -67,6 +80,7 @@
 				id="filter-input"
 				type="text"
 				bind:value={filter}
+				onkeydown={handleKeyDown}
 				placeholder="regex pattern..."
 				class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-500 caret-accent-blue focus:ring-0"
 			/>
@@ -75,24 +89,32 @@
 
 	<!-- Status Bar -->
 	<div
-		class="flex items-center justify-end border-t border-terminal-border bg-[#0f1318] px-6 py-3 font-mono text-xs text-text-muted transition-colors duration-300 select-none"
+		class="flex items-center justify-between border-t border-terminal-border bg-[#0f1318] px-6 py-3 font-mono text-xs text-text-muted transition-colors duration-300 select-none"
 	>
 		{#if !authState.isAuthenticated}
+			<div></div>
 			<button
 				onclick={handleGitHubLogin}
-				class="flex h-12 items-center justify-center gap-2.5 rounded-lg bg-accent-blue px-6 text-base font-medium text-white shadow-md transition-all hover:bg-blue-600 hover:shadow-lg active:scale-[0.98]"
+				disabled={isQueryEmpty}
+				class="flex h-12 items-center justify-center gap-2.5 rounded-lg px-6 text-base font-medium shadow-md transition-all {isQueryEmpty
+					? 'cursor-not-allowed bg-gray-700 text-gray-500'
+					: 'bg-accent-blue text-white hover:bg-blue-600 hover:shadow-lg active:scale-[0.98]'}"
 			>
 				<IconLucideGithub class="text-[20px]" />
 				<span>Sign in with GitHub</span>
 			</button>
 		{:else}
+			<div></div>
 			<button
 				onclick={handleExecute}
-				class="group flex items-center gap-2 tracking-wider uppercase transition-colors hover:text-white"
+				disabled={isQueryEmpty}
+				class="group flex items-center gap-2 tracking-wider uppercase transition-colors {isQueryEmpty
+					? 'cursor-not-allowed text-gray-600'
+					: 'hover:text-white'}"
 			>
 				Execute
 				<IconLucideCornerDownLeft
-					class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+					class="h-4 w-4 transition-transform {isQueryEmpty ? '' : 'group-hover:translate-x-0.5'}"
 				/>
 			</button>
 		{/if}

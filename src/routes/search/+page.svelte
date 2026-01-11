@@ -10,6 +10,7 @@
 	// Read URL parameters
 	let query = $derived($page.url.searchParams.get('query') || '');
 	let filter = $derived($page.url.searchParams.get('filter') || '');
+	let currentPage = $derived(parseInt($page.url.searchParams.get('page') || '1', 10));
 
 	// Redirect to main page if no query parameter
 	onMount(() => {
@@ -82,14 +83,6 @@
 		<!-- Search Bar Section -->
 		<section class="flex flex-col gap-4">
 			<SearchBar variant="search" {query} {filter} />
-
-			<!-- Debug: Show current search parameters -->
-			<div class="rounded border border-accent-green/30 bg-terminal-panel p-4 font-mono text-sm">
-				<div class="text-accent-green">Query: <span class="text-white">{query}</span></div>
-				<div class="text-accent-blue">
-					Filter: <span class="text-white">{filter || '(none)'}</span>
-				</div>
-			</div>
 		</section>
 
 		<!-- Results Count -->
@@ -106,7 +99,7 @@
 
 		<!-- Pagination -->
 		<div class="mt-8 flex justify-center pb-10">
-			<Pagination currentPage={1} totalPages={10} />
+			<Pagination {currentPage} totalPages={10} {query} {filter} />
 		</div>
 	</main>
 </div>
