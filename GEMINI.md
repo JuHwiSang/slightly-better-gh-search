@@ -189,6 +189,24 @@ This project provides an upgraded version of GitHub Code Search with the followi
   - **판단 기준**: "이 피드백이 다른 상황에서도 도움이 될까?"
   - **목적**: 미래의 실수 방지, 작업 일지가 아님
 
+### 📝 User Feedback Log (2026-01-12)
+
+#### 5. **ADR 작성 기준** ⭐
+- **상황**: URL 쿼리 파라미터 구조를 ADR-002로 작성 (대안 3개, 구현 세부사항 포함, 79줄)
+- **피드백**: "ADR 너무 복잡함. 좀 간단히좀 해라. 대안 넣을 필요도 없어 임마. 너무 당연한거다라... 구현세부사항같은 소리하네"
+- **최종 결정**: ADR 삭제, `docs/endpoints/search.md`로 이동 (15줄)
+- **재사용 가능한 교훈**:
+  - ✅ **ADR은 중요하고 복잡한 아키텍처 결정에만 사용**
+    - 예: 시스템 아키텍처 선택 (SvelteKit vs Next.js, Supabase vs Firebase)
+    - 예: 보안 관련 중요 결정 (인증 방식, 데이터 암호화)
+  - ✅ **간단하고 당연한 결정은 별도 문서로**
+    - URL 구조 → `docs/endpoints/`
+    - API 스펙 → `docs/api/`
+  - ❌ **ADR에 불필요한 내용**:
+    - 너무 당연한 대안들 (URL vs localStorage 등)
+    - 구현 세부사항 (코드에 있는 내용)
+  - **판단 기준**: "이 결정이 나중에 바뀌면 시스템 전체에 큰 영향을 주는가?"
+
 ### 📋 개발 체크리스트
 
 새로운 UI 요소 구현 시:
@@ -388,5 +406,5 @@ slightly-better-gh-search/
 
 ---
 
-*Last Updated: 2026-01-11*  
+*Last Updated: 2026-01-12*  
 *This file should be updated whenever the user identifies issues or provides important feedback.*

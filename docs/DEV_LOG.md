@@ -4,6 +4,59 @@
 
 ---
 
+## 2026-01-12
+
+### Search URL Parameter Implementation
+- **변경사항**: 검색 기능에 URL 쿼리 파라미터 지원 추가
+- **주요 구현**:
+  - `SearchBar.svelte`: 
+    - `$state` runes로 `query`, `filter` 상태 관리
+    - `initialQuery`, `initialFilter` props 추가 (URL에서 받은 값으로 초기화)
+    - `handleExecute()`: `URLSearchParams`로 URL 생성 후 `/search`로 이동
+    - 검색어 빈 값 검증 추가
+  - `search/+page.svelte`:
+    - `$page.url.searchParams`로 URL 파라미터 읽기
+    - `$derived`로 `query`, `filter` 값 추출
+    - `query` 없을 시 메인 페이지로 리다이렉트
+    - SearchBar에 초기값 전달
+    - 디버그 박스 추가 (임시)
+  - URL 구조: `/search?query={검색어}&filter={필터표현식}`
+
+### Documentation Structure Decision
+- **피드백**: "ADR 너무 복잡함. 간단히 해라. 대안 넣을 필요도 없어"
+- **결정**: ADR-002 삭제, `docs/endpoints/search.md`로 이동
+- **이유**: 
+  - URL 파라미터 구조는 너무 작고 당연한 결정이라 ADR로 하기엔 과함
+  - 간단한 엔드포인트 문서가 더 적합
+- **교훈**: 
+  - ✅ ADR은 **중요하고 복잡한 아키텍처 결정**에만 사용
+  - ✅ 간단한 API/엔드포인트 구조는 **별도 문서**로 관리
+  - ❌ 모든 결정을 ADR로 만들 필요 없음
+
+### User Feedback & Iterations
+1. **ADR 간소화**:
+   - ❌ 초기: 대안 3개, 구현 세부사항 포함 (79줄)
+   - ✅ 1차 수정: 대안 제거, 핵심만 유지 (34줄)
+   - ✅ 최종: ADR 삭제, `docs/endpoints/search.md`로 이동 (15줄)
+2. **Placeholder 가시성**:
+   - 문제: `placeholder-gray-700`이 너무 어두워 안 보임
+   - 해결: `placeholder-gray-500`으로 변경
+
+### Files Modified
+- `src/lib/components/SearchBar.svelte`
+- `src/routes/search/+page.svelte`
+- `docs/endpoints/search.md` (신규)
+- `docs/adr/ADR-002-search-url-parameters.md` (삭제)
+
+### Testing Results
+- ✅ 기본 검색: `/search?query=useState&filter=`
+- ✅ 필터 포함: `/search?query=react+hooks&filter=stars%3E100`
+- ✅ 직접 URL 접근 정상 작동
+- ✅ query 없을 시 메인 페이지로 리다이렉트
+- ✅ 브라우저 뒤로가기/앞으로가기 정상 작동
+
+---
+
 ## 2026-01-11
 
 ### Authentication UI Implementation
