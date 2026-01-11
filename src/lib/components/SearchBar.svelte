@@ -6,15 +6,11 @@
 
 	interface Props {
 		variant?: 'main' | 'search';
-		initialQuery?: string;
-		initialFilter?: string;
+		query?: string;
+		filter?: string;
 	}
 
-	let { variant = 'main', initialQuery = '', initialFilter = '' }: Props = $props();
-
-	// Search state
-	let query = $state(initialQuery);
-	let filter = $state(initialFilter);
+	let { variant = 'main', query = $bindable(''), filter = $bindable('') }: Props = $props();
 
 	// TODO: Replace with actual GitHub OAuth login
 	function handleGitHubLogin() {

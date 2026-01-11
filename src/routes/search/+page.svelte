@@ -81,7 +81,7 @@
 	<main class="mx-auto flex w-full max-w-[1024px] flex-1 flex-col gap-6 px-4 py-8">
 		<!-- Search Bar Section -->
 		<section class="flex flex-col gap-4">
-			<SearchBar variant="search" initialQuery={query} initialFilter={filter} />
+			<SearchBar variant="search" {query} {filter} />
 
 			<!-- Debug: Show current search parameters -->
 			<div class="rounded border border-accent-green/30 bg-terminal-panel p-4 font-mono text-sm">
