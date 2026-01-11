@@ -103,6 +103,7 @@
 				<IconLucideGithub class="text-[20px]" />
 				<span>Sign in with GitHub</span>
 			</button>
+			<div></div>
 		{:else}
 			<div></div>
 			<button
