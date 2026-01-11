@@ -90,6 +90,105 @@ This project provides an upgraded version of GitHub Code Search with the followi
   <button on:click={() => window.history.back()}>Back</button>
   ```
 
+#### 7. **Svelte 5 Runes 사용**
+- ❌ **잘못된 접근**: `writable` store 사용 (Svelte 4 방식)
+- ✅ **올바른 접근**: `$state` runes 사용 (Svelte 5 방식)
+- **이유**: 더 간결하고 직관적인 문법, 타입 안정성 향상
+- **구현 예시**:
+  ```typescript
+  // ✅ Svelte 5 방식
+  class AuthState {
+    user = $state<User | null>(null);
+    isAuthenticated = $state(false);
+  }
+  export const authState = new AuthState();
+  
+  // ❌ Svelte 4 방식
+  export const user = writable<User | null>(null);
+  export const isAuthenticated = writable(false);
+  ```
+
+#### 8. **조건부 스타일링 패턴**
+- ❌ **잘못된 접근**: 여러 개의 `class:` 디렉티브 사용
+- ✅ **올바른 접근**: 삼항 연산자로 한 번에 처리
+- **이유**: 
+  - Tailwind의 `/` 문자 (opacity 구분자) 처리 문제 회피
+  - 가독성 향상 (로그인 전/후 스타일 비교 용이)
+  - 성능 (조건 체크 1번만 수행)
+- **구현 예시**:
+  ```svelte
+  <!-- ✅ 올바른 방법 -->
+  <div class="{authState.isAuthenticated
+    ? 'border-gray-700 bg-dark'
+    : 'border-blue-500 bg-blue-900'} base-classes">
+  
+  <!-- ❌ 피해야 할 방법 -->
+  <div class="base-classes"
+    class:border-gray-700={authState.isAuthenticated}
+    class:bg-dark={authState.isAuthenticated}
+    class:border-blue-500={!authState.isAuthenticated}
+    class:bg-blue-900={!authState.isAuthenticated}>
+  ```
+
+#### 9. **인증 상태 UI 패턴**
+- ❌ **잘못된 접근**: 로그인 전/후 완전히 다른 레이아웃 구성
+- ✅ **올바른 접근**: 기본 레이아웃 유지, 핵심 요소만 조건부 렌더링
+- **이유**: 일관된 사용자 경험, 코드 중복 최소화
+- **구현 예시**:
+  ```svelte
+  <!-- ✅ 올바른 방법: 버튼만 변경 -->
+  <SearchBar>
+    {#if !authState.isAuthenticated}
+      <button>Sign in with GitHub</button>
+    {:else}
+      <button>Execute</button>
+    {/if}
+  </SearchBar>
+  
+  <!-- ❌ 피해야 할 방법: 전체 레이아웃 분기 -->
+  {#if !authState.isAuthenticated}
+    <LoginLayout />
+  {:else}
+    <SearchLayout />
+  {/if}
+  ```
+
+### 📝 User Feedback Log (2026-01-11)
+
+오늘 작업 중 받은 피드백과 **재사용 가능한** 교훈:
+
+#### 1. **디자인 가이드 활용 원칙** (재확인)
+- **상황**: 로그인 전/후 완전히 다른 레이아웃 구현
+- **피드백**: "로그인전/로그인후 메인화면이 아주 그냥 천차만별이야? 딱 github 버튼과 execute 버튼, 딱 그 부분만 달라야지"
+- **재사용 가능한 교훈**: 
+  - 디자인 파일은 **영감**일 뿐, 프로젝트 요구사항에 맞게 조정
+  - 상태 변화 시 **최소한의 UI 변경**만 적용 (일관성 유지)
+  - 이미 위의 "Common Mistakes #1, #9"에 문서화됨
+
+#### 2. **조건부 스타일링 베스트 프랙티스** (재확인)
+- **상황**: 여러 `class:` 디렉티브 사용 → Tailwind `/` 문자 오류
+- **피드백**: "'/'는 처리가 안된다. 걍 한번만 해라. {authState.isAuthenticated ? ~ : ~} 이거 써라"
+- **재사용 가능한 교훈**:
+  - 삼항 연산자로 조건부 스타일 한 번에 처리
+  - 이미 위의 "Common Mistakes #8"에 문서화됨
+
+#### 3. **시각적 효과의 절제**
+- **상황**: 과도한 링, 글로우, 애니메이션 효과
+- **피드백**: "너무 반짝반짝하잖음. 걍 버튼 스타일만 좀 그 로그인처럼 만들어보셈"
+- **재사용 가능한 교훈**:
+  - 디자인 파일의 **핵심 요소**만 차용 (버튼 스타일)
+  - 과도한 장식(글로우, 펄스 등)은 제거
+  - **원칙**: "디자인 파일처럼"이 아니라 "디자인 파일의 의도처럼"
+
+#### 4. **피드백 문서화 메타 원칙** ⭐
+- **상황**: 상황별 해결책(패딩 추가)을 피드백으로 기록
+- **피드백**: "'이 피드백을 쓰면 나중에 이 실수를 안할 수 있겠네' 이런 거만 써야지, 뭔 '패딩좀 넣자' 이런걸 하고 있니"
+- **재사용 가능한 교훈**:
+  - ✅ **패턴/원칙**만 기록: "삼항 연산자 사용", "최소 UI 변경"
+  - ❌ **특정 해결책**은 기록 안 함: "패딩 추가", "색상 변경"
+  - **판단 기준**: "이 피드백이 다른 상황에서도 도움이 될까?"
+  - **목적**: 미래의 실수 방지, 작업 일지가 아님
+
 ### 📋 개발 체크리스트
 
 새로운 UI 요소 구현 시:
@@ -98,6 +197,9 @@ This project provides an upgraded version of GitHub Code Search with the followi
 3. [ ] 모든 UI 요소가 실제로 필요한가?
 4. [ ] 아이콘은 컴포넌트로 구현했는가?
 5. [ ] CSS import 순서가 올바른가?
+6. [ ] Svelte 5 runes (`$state`, `$derived`)를 사용했는가?
+7. [ ] 조건부 스타일링은 삼항 연산자로 간결하게 처리했는가?
+8. [ ] 인증 상태 UI는 최소한의 변경만 적용했는가?
 
 
 ## Project Structure
@@ -171,7 +273,9 @@ This project provides an upgraded version of GitHub Code Search with the followi
   - 검색 입력창
   - 필터 입력창
   - 터미널 스타일 UI
-  - 상태 표시 (READY, SEARCHING 등)
+  - **조건부 버튼**: 
+    - 로그인 전: "Sign in with GitHub" (파란색 버튼)
+    - 로그인 후: "Execute" (텍스트 버튼)
 
 #### 페이지별 컴포넌트
 - **SearchResultCard** (검색 결과 페이지)
@@ -212,7 +316,7 @@ slightly-better-gh-search/
 │   │   │   ├── ProfileCard.svelte
 │   │   │   └── UsageCard.svelte
 │   │   ├── stores/
-│   │   │   ├── auth.ts               # 인증 상태 관리
+│   │   │   ├── auth.svelte.ts        # 인증 상태 관리 (Svelte 5 runes)
 │   │   │   └── search.ts             # 검색 상태 관리
 │   │   └── utils/
 │   │       ├── filterEvaluator.ts    # 필터 표현식 안전 평가
@@ -243,6 +347,12 @@ slightly-better-gh-search/
 - GitHub OAuth 로그인
 - 세션 관리 (Supabase Auth)
 - 보호된 라우트: `/search`, `/profile`
+- **상태 관리**: `auth.svelte.ts`
+  - Svelte 5 `$state` runes 사용
+  - `authState.isAuthenticated`: 로그인 여부
+  - `authState.user`: 사용자 정보
+  - `authState.login()`: 로그인 처리
+  - `authState.logout()`: 로그아웃 처리
 
 #### 3. **필터 표현식 평가**
 - **보안 우선**: `eval()` 사용 금지
@@ -278,5 +388,5 @@ slightly-better-gh-search/
 
 ---
 
-*Last Updated: 2026-01-10*  
+*Last Updated: 2026-01-11*  
 *This file should be updated whenever the user identifies issues or provides important feedback.*

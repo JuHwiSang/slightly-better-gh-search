@@ -4,6 +4,67 @@
 
 ---
 
+## 2026-01-11
+
+### Authentication UI Implementation
+- **변경사항**: 로그인/로그아웃 상태에 따른 조건부 UI 구현
+- **주요 구현**:
+  - `auth.svelte.ts`: Svelte 5 runes 기반 인증 상태 관리
+    - `$state`를 사용한 반응형 상태 (`isAuthenticated`, `user`)
+    - `login()`, `logout()` 메서드
+  - `SearchBar.svelte`: 조건부 버튼 렌더링
+    - 로그인 전: "Sign in with GitHub" (파란색 버튼, h-12, 아이콘 포함)
+    - 로그인 후: "Execute" (텍스트 버튼)
+  - `Header.svelte`: 로그아웃 기능 연결
+  - `+page.svelte`: 하단 패딩 추가 (`pb-24`)로 중앙 정렬 개선
+
+### User Feedback & Iterations
+1. **파일명 변경**: `auth.ts` → `auth.svelte.ts` (Svelte 5 runes 사용 명시)
+2. **디자인 가이드 활용**:
+   - ❌ 초기: 디자인 파일(`main-login-required.html`)을 그대로 복사 시도
+   - ✅ 최종: 디자인은 참고만 하고 프로젝트에 맞게 조정
+   - **교훈**: 로그인 전/후 완전히 다른 레이아웃 대신, 버튼만 변경하여 일관성 유지
+3. **Svelte 5 문법 전환**:
+   - ❌ 초기: `writable` store 사용 (Svelte 4 방식)
+   - ✅ 최종: `$state` runes 사용 (Svelte 5 방식)
+4. **조건부 스타일링 개선**:
+   - ❌ 초기: 여러 개의 `class:` 디렉티브 사용 → Tailwind `/` 문자 처리 오류
+   - ✅ 최종: 삼항 연산자로 간결하게 처리
+5. **시각적 효과 조정**:
+   - ❌ 초기: 파란색 링, 글로우, `animate-pulse` 등 과도한 효과
+   - ✅ 최종: 버튼 스타일만 강조 (디자인 파일 참고)
+6. **레이아웃 조정**:
+   - 문제: Header로 인해 콘텐츠가 아래로 밀림
+   - 해결: 메인 페이지 하단 패딩 추가 (`pb-24`)
+
+### Technical Decisions
+- **상태 관리**: Svelte 5 `$state` runes 사용 (store 대신)
+  - 더 간결한 문법, 타입 안정성 향상
+  - 클래스 기반으로 메서드 추가 가능
+- **UI 패턴**: 최소 변경 원칙
+  - 전체 레이아웃은 동일하게 유지
+  - 핵심 요소(버튼)만 조건부 렌더링
+- **스타일링**: 삼항 연산자 활용
+  - Tailwind opacity 구분자(`/`) 문제 회피
+  - 가독성 향상 (로그인 전/후 비교 용이)
+
+### Files Modified
+- `src/lib/stores/auth.svelte.ts` (신규)
+- `src/lib/components/SearchBar.svelte`
+- `src/lib/components/Header.svelte`
+- `src/routes/+page.svelte`
+- `docs/design/main-login-required.html` (신규, 참고용)
+
+### Documentation Updates
+- `GEMINI.md`: 3개 새로운 교훈 추가
+  - Svelte 5 Runes 사용
+  - 조건부 스타일링 패턴
+  - 인증 상태 UI 패턴
+- 개발 체크리스트 3개 항목 추가
+- Component Architecture 업데이트
+
+---
+
 ## 2026-01-10
 
 ### UI Simplification - Profile Page
