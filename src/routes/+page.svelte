@@ -7,7 +7,7 @@
 	<Header />
 
 	<main
-		class="relative mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-4 py-12 md:px-8"
+		class="relative mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-4 py-12 pb-24 md:px-8"
 	>
 		<!-- Grid Background Pattern -->
 		<div

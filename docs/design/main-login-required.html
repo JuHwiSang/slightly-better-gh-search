@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login - CodeSearch</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom subtle grid pattern for the background */
+        .bg-grid-pattern {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
+        .light .bg-grid-pattern {
+            background-image: linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body class="font-display antialiased text-slate-900 dark:text-white">
+<div class="relative flex min-h-screen w-full flex-col overflow-hidden bg-background-light dark:bg-background-dark transition-colors duration-300">
+<!-- Decorative Background Elements -->
+<div class="absolute inset-0 z-0 bg-grid-pattern pointer-events-none"></div>
+<div class="absolute left-1/2 top-1/2 -z-10 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-[100px] pointer-events-none"></div>
+<!-- Main Layout -->
+<div class="layout-container flex h-full grow flex-col justify-center relative z-10">
+<div class="px-4 md:px-40 flex flex-1 justify-center items-center py-5">
+<div class="layout-content-container flex flex-col max-w-[960px] w-full items-center gap-12">
+<!-- Header / Logo Area -->
+<div class="flex flex-col items-center gap-4 text-center">
+<div class="flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 border border-white/10 shadow-lg backdrop-blur-sm mb-2">
+<span class="material-symbols-outlined text-white text-2xl">terminal</span>
+</div>
+<h1 class="text-3xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-white max-w-[720px]">
+                            Search your codebase instantly.
+                        </h1>
+<p class="text-slate-500 dark:text-slate-400 text-lg font-medium leading-normal max-w-[500px]">
+                            Authorized access required for private repositories.
+                        </p>
+</div>
+<!-- The Integrated Input -->
+<div class="w-full max-w-[600px] group">
+<!-- Search Bar Container -->
+<div class="relative flex items-center w-full h-16 md:h-[72px] bg-white dark:bg-[#1A202C] rounded-lg border border-slate-200 dark:border-slate-700 shadow-xl transition-all duration-300 group-hover:border-primary group-hover:shadow-primary/10 group-hover:ring-1 group-hover:ring-primary/50">
+<!-- Left: Simulated Prompt -->
+<div class="flex items-center pl-6 pointer-events-none select-none">
+<span class="font-mono text-lg text-slate-400 dark:text-slate-500">Login /</span>
+<span class="animate-pulse ml-1 h-5 w-[2px] bg-primary opacity-70"></span>
+</div>
+<!-- Spacer to push button to right -->
+<div class="flex-1"></div>
+<!-- Right: Embedded Action Button -->
+<div class="pr-2">
+<button class="flex items-center justify-center gap-2.5 h-12 px-6 rounded-lg bg-primary hover:bg-blue-600 text-white font-medium text-base transition-all active:scale-[0.98] shadow-md hover:shadow-lg">
+<span class="material-symbols-outlined text-[20px]">code</span>
+<span>Sign in with GitHub</span>
+</button>
+</div>
+</div>
+<!-- Helper Text -->
+<div class="mt-4 flex justify-center gap-6 text-sm text-slate-400 dark:text-slate-500 font-mono opacity-60">
+<span class="flex items-center gap-1"><span class="bg-slate-200 dark:bg-slate-800 px-1.5 rounded text-xs py-0.5">cmd</span> + <span class="bg-slate-200 dark:bg-slate-800 px-1.5 rounded text-xs py-0.5">k</span> to search</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="relative z-10 w-full py-8">
+<div class="flex flex-col items-center gap-6 px-5 text-center">
+<div class="flex flex-wrap items-center justify-center gap-8">
+<a class="text-slate-500 hover:text-primary dark:text-slate-400 dark:hover:text-white text-sm font-medium transition-colors" href="#">Terms</a>
+<a class="text-slate-500 hover:text-primary dark:text-slate-400 dark:hover:text-white text-sm font-medium transition-colors" href="#">Privacy</a>
+<a class="text-slate-500 hover:text-primary dark:text-slate-400 dark:hover:text-white text-sm font-medium transition-colors" href="#">About</a>
+</div>
+<p class="text-slate-400 dark:text-slate-600 text-sm">© 2024 CodeSearch Inc.</p>
+</div>
+</footer>
+</div>
+</body></html>

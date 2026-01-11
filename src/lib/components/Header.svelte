@@ -3,6 +3,7 @@
 	import IconLucideGitBranch from '~icons/lucide/git-branch';
 	import IconLucideBarChart2 from '~icons/lucide/bar-chart-2';
 	import IconLucideLogOut from '~icons/lucide/log-out';
+	import { authState } from '$lib/stores/auth.svelte';
 
 	let showDropdown = $state(false);
 
@@ -12,6 +13,11 @@
 
 	function closeDropdown() {
 		showDropdown = false;
+	}
+
+	function handleLogout() {
+		authState.logout();
+		closeDropdown();
 	}
 </script>
 
@@ -78,6 +84,7 @@
 						Profile Settings
 					</a>
 					<button
+						onclick={handleLogout}
 						class="w-full rounded px-3 py-2 text-left text-sm text-white transition-colors hover:bg-terminal-border"
 					>
 						Log out
