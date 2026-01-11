@@ -2,17 +2,39 @@
 	import IconLucideCornerDownLeft from '~icons/lucide/corner-down-left';
 	import IconLucideGithub from '~icons/lucide/github';
 	import { authState } from '$lib/stores/auth.svelte';
+	import { goto } from '$app/navigation';
 
 	interface Props {
 		variant?: 'main' | 'search';
+		initialQuery?: string;
+		initialFilter?: string;
 	}
 
-	let { variant = 'main' }: Props = $props();
+	let { variant = 'main', initialQuery = '', initialFilter = '' }: Props = $props();
+
+	// Search state
+	let query = $state(initialQuery);
+	let filter = $state(initialFilter);
 
 	// TODO: Replace with actual GitHub OAuth login
 	function handleGitHubLogin() {
 		console.log('GitHub login clicked');
 		authState.isAuthenticated = true;
+	}
+
+	function handleExecute() {
+		// Validate query is not empty
+		if (!query.trim()) {
+			alert('Please enter a search query');
+			return;
+		}
+
+		// Build URL with query parameters
+		const params = new URLSearchParams();
+		params.set('query', query.trim());
+		params.set('filter', filter.trim());
+
+		goto(`/search?${params.toString()}`);
 	}
 </script>
 
@@ -31,6 +53,7 @@
 			<input
 				id="search-input"
 				type="text"
+				bind:value={query}
 				placeholder="enter keyword..."
 				class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-500 caret-accent-green focus:ring-0"
 			/>
@@ -47,6 +70,7 @@
 			<input
 				id="filter-input"
 				type="text"
+				bind:value={filter}
 				placeholder="regex pattern..."
 				class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-500 caret-accent-blue focus:ring-0"
 			/>
@@ -67,6 +91,7 @@
 			</button>
 		{:else}
 			<button
+				onclick={handleExecute}
 				class="group flex items-center gap-2 tracking-wider uppercase transition-colors hover:text-white"
 			>
 				Execute

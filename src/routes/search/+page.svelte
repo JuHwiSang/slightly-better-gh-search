@@ -3,6 +3,20 @@
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import SearchResultCard from '$lib/components/SearchResultCard.svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+
+	// Read URL parameters
+	let query = $derived($page.url.searchParams.get('query') || '');
+	let filter = $derived($page.url.searchParams.get('filter') || '');
+
+	// Redirect to main page if no query parameter
+	onMount(() => {
+		if (!query) {
+			goto('/');
+		}
+	});
 
 	// Mock data for demonstration
 	const mockResults = [
@@ -67,7 +81,15 @@
 	<main class="mx-auto flex w-full max-w-[1024px] flex-1 flex-col gap-6 px-4 py-8">
 		<!-- Search Bar Section -->
 		<section class="flex flex-col gap-4">
-			<SearchBar variant="search" />
+			<SearchBar variant="search" initialQuery={query} initialFilter={filter} />
+
+			<!-- Debug: Show current search parameters -->
+			<div class="rounded border border-accent-green/30 bg-terminal-panel p-4 font-mono text-sm">
+				<div class="text-accent-green">Query: <span class="text-white">{query}</span></div>
+				<div class="text-accent-blue">
+					Filter: <span class="text-white">{filter || '(none)'}</span>
+				</div>
+			</div>
 		</section>
 
 		<!-- Results Count -->
