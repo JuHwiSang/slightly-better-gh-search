@@ -32,7 +32,7 @@
 				id="search-input"
 				type="text"
 				placeholder="enter keyword..."
-				class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-700 caret-accent-green focus:ring-0"
+				class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-500 caret-accent-green focus:ring-0"
 			/>
 		</div>
 
@@ -48,7 +48,7 @@
 				id="filter-input"
 				type="text"
 				placeholder="regex pattern..."
-				class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-700 caret-accent-blue focus:ring-0"
+				class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-500 caret-accent-blue focus:ring-0"
 			/>
 		</div>
 	</div>
