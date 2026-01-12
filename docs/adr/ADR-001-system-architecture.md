@@ -50,8 +50,13 @@ ADR 001. 시스템 아키텍처 결정
 
 - Github Repository는 sveltekit 세팅으로 사용하고, supabase/ 폴더를 추가해 사용한다.
 
+- Github SSO Token은 안전해야 하니, Edge Function 외부로 나오지 않게 한다.
+
 # 영향
 
 - 시스템 아키텍처의 커다란 틀이 결정된다.
 - SvelteKit, Supabase, Upstash를 사용해보는 경험을 가질 수 있게 된다.
 - Spring 기술스택 경험과 휴대성을 포기한다.
+
+# 변경 사항
+- 26. 01. 12) Github SSO Token의 사용 범위 제한 내용 추가
