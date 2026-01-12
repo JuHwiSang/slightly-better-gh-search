@@ -23,7 +23,7 @@
 
 <svelte:window onclick={closeDropdown} />
 
-<header class="flex w-full items-center justify-between px-6 py-6 whitespace-nowrap">
+<header class="flex w-full items-center justify-between px-6 py-4 whitespace-nowrap">
 	<a href="/" class="flex items-center gap-3 transition-opacity select-none hover:opacity-80">
 		<IconLucideSearch class="h-6 w-6 text-accent-blue" />
 		<h2 class="font-display text-lg font-bold tracking-tight text-white">
