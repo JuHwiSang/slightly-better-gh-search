@@ -33,6 +33,12 @@ This project provides an upgraded version of GitHub Code Search with the followi
 2. Add it to the "Common Mistakes to Avoid" section below
 3. This ensures the same mistake is not repeated in future interactions
 
+### Documentation Update Protocol
+**CRITICAL**: When implementing significant changes or receiving user feedback:
+1. **GEMINI.md**: Update "User Feedback Log" with reusable patterns and lessons
+2. **DEV_LOG.md**: Update with technical implementation details and iteration history
+3. Both documents must be updated together - one without the other is incomplete
+
 ### Code Standards
 - Follow SvelteKit best practices
 - Maintain clean, readable code
@@ -206,6 +212,91 @@ This project provides an upgraded version of GitHub Code Search with the followi
     - 너무 당연한 대안들 (URL vs localStorage 등)
     - 구현 세부사항 (코드에 있는 내용)
   - **판단 기준**: "이 결정이 나중에 바뀌면 시스템 전체에 큰 영향을 주는가?"
+
+### 📝 User Feedback Log (2026-01-12/13)
+
+#### 6. **버튼 Disable 상태 처리** ⭐
+- **상황**: Query 없을 때 alert 표시
+- **피드백**: "query 없을땐 alert하는 게 아니라 button 자체가 disable되어야함. 이때 disable되었다는게 시각적으로 잘 보여야겠지?"
+- **재사용 가능한 교훈**:
+  - ✅ **입력 검증은 버튼 상태로 표현**
+    - Alert/경고 메시지 대신 버튼 disable
+    - `$derived`로 입력값 검증 상태 계산
+    - 시각적 피드백: 회색 텍스트, `cursor-not-allowed`, `pointer-events-none`
+  - ✅ **실제로 클릭 불가능하게 만들기**
+    - `disabled` 속성만으로는 부족 (aria-disabled만 있는 경우)
+    - `pointer-events-none` 추가로 모든 마우스 이벤트 차단
+  - **구현 예시**:
+    ```svelte
+    let isQueryEmpty = $derived(!query.trim());
+    
+    <button
+      disabled={isQueryEmpty}
+      class="{isQueryEmpty 
+        ? 'pointer-events-none cursor-not-allowed text-gray-600' 
+        : 'hover:text-white'}"
+    >
+    ```
+
+#### 7. **키보드 네비게이션 UX** ⭐
+- **상황**: Enter 키 힌트만 표시, 실제 동작 없음
+- **피드백**: "ENTER to execute 만들려면 search나 filter쪽에 좀 로직 추가해야겠지?"
+- **추가 피드백**: "얌마. input에서 enter 쳤을때 현재 로그아웃이면 알아서 깃헙클릭으로 들어가야지...."
+- **재사용 가능한 교훈**:
+  - ✅ **키보드 힌트는 실제 동작과 일치해야 함**
+    - 힌트만 표시하고 기능 없으면 안 됨
+    - `onkeydown` 핸들러로 Enter 키 처리
+  - ✅ **상태에 따른 Enter 키 동작 분기**
+    - 로그아웃 상태: Enter → GitHub 로그인
+    - 로그인 상태: Enter → 검색 실행
+  - **구현 예시**:
+    ```svelte
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Enter') {
+        if (authState.isAuthenticated) {
+          handleExecute();
+        } else {
+          handleGitHubLogin();
+        }
+      }
+    }
+    ```
+
+#### 8. **Pagination UI 단순화** ⭐
+- **상황**: 복잡한 ellipsis 로직 (7개 요소, 조건부 `...` 표시)
+- **피드백**: "이것보단 걍 << < 숫자5개 > >> 이 구조로 하는게 어떰"
+- **추가 피드백**: "임마 <<랑 >> 아이콘으로 해야지.... 뭔 텍스트로 하고앉아있어"
+- **재사용 가능한 교훈**:
+  - ✅ **복잡한 로직보다 단순하고 일관된 UI**
+    - Ellipsis 조건 분기 제거
+    - 항상 5개 페이지 표시 (현재 페이지 중심)
+    - First/Last 버튼 추가로 모든 페이지 접근 가능
+  - ✅ **아이콘 일관성**
+    - 텍스트(`«`, `»`) 대신 Lucide 아이콘 사용
+    - `IconLucideChevronsLeft`, `IconLucideChevronsRight`
+  - **최종 구조**: `« < [5개 숫자] > »`
+    - 너비 일정, 예측 가능한 레이아웃
+    - 모든 disabled 버튼에 `pointer-events-none`
+
+#### 9. **URL 쿼리 파라미터 유지** ⭐
+- **상황**: Pagination 클릭 시 query/filter 초기화
+- **피드백**: "search 페이지에서 하단 page 바꿀때 초기화되는 이슈나 해결하슈.... url 어디로 갈지를 선택해야지..."
+- **재사용 가능한 교훈**:
+  - ✅ **네비게이션 시 상태 유지**
+    - URL 파라미터로 모든 검색 상태 관리
+    - Pagination에 query/filter props 전달
+    - `buildPageUrl()` 헬퍼로 모든 파라미터 포함
+  - **구현 예시**:
+    ```typescript
+    function buildPageUrl(page: number): string {
+      const params = new URLSearchParams();
+      if (query) params.set('query', query);
+      if (filter) params.set('filter', filter);
+      params.set('page', page.toString());
+      return `/search?${params.toString()}`;
+    }
+    ```
+
 
 ### 📋 개발 체크리스트
 
@@ -406,5 +497,5 @@ slightly-better-gh-search/
 
 ---
 
-*Last Updated: 2026-01-12*  
+*Last Updated: 2026-01-13*  
 *This file should be updated whenever the user identifies issues or provides important feedback.*

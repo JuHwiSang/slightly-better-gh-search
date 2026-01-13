@@ -4,6 +4,93 @@
 
 ---
 
+## 2026-01-12/13
+
+### SearchBar UX Improvements
+- **변경사항**: 입력 검증 및 키보드 네비게이션 개선
+- **주요 구현**:
+  - **버튼 Disable 상태**:
+    - `isQueryEmpty = $derived(!query.trim())` 추가
+    - Query 비어있을 때 GitHub 로그인 버튼과 Execute 버튼 모두 disable
+    - 시각적 피드백: `pointer-events-none`, `cursor-not-allowed`, 회색 텍스트
+    - Alert 제거 → 버튼 상태로 검증 표현
+  - **Enter 키 지원**:
+    - `handleKeyDown()` 함수 추가
+    - 로그아웃 상태: Enter → GitHub 로그인 트리거
+    - 로그인 상태: Enter → 검색 실행
+    - 두 input 모두에 `onkeydown` 핸들러 적용
+  - **레이블 제거**: "Search:", "Filter:" 레이블 제거 (UI 단순화)
+
+### Pagination Redesign
+- **변경사항**: 복잡한 ellipsis 로직 → 단순한 5개 숫자 구조
+- **주요 구현**:
+  - **새로운 구조**: `« < [5개 숫자] > »`
+    - First (`«`): 첫 페이지로 이동
+    - Previous (`<`): 이전 페이지
+    - 5개 페이지 숫자 (현재 페이지 중심)
+    - Next (`>`): 다음 페이지
+    - Last (`»`): 마지막 페이지로 이동
+  - **아이콘 사용**:
+    - `IconLucideChevronsLeft` / `IconLucideChevronsRight` (First/Last)
+    - `IconLucideChevronLeft` / `IconLucideChevronRight` (Prev/Next)
+  - **페이지 번호 로직**:
+    - 항상 5개 페이지 표시 (현재 페이지 중심 ±2)
+    - 시작/끝 부근에서 자동 조정
+    - 일정한 너비 유지
+  - **Disable 처리**:
+    - 현재 페이지: `<span>` 태그로 클릭 불가 + `pointer-events-none`
+    - First/Prev 버튼: 첫 페이지일 때 `pointer-events-none`
+    - Last/Next 버튼: 마지막 페이지일 때 `pointer-events-none`
+
+### URL Parameter Persistence
+- **변경사항**: Pagination 이동 시 query/filter 유지
+- **주요 구현**:
+  - `search/+page.svelte`:
+    - `currentPage = $derived(parseInt($page.url.searchParams.get('page') || '1', 10))`
+    - Pagination에 `{currentPage}`, `{query}`, `{filter}` props 전달
+  - `Pagination.svelte`:
+    - `query`, `filter` props 추가
+    - `buildPageUrl(page)` 헬퍼 함수:
+      ```typescript
+      function buildPageUrl(page: number): string {
+        const params = new URLSearchParams();
+        if (query) params.set('query', query);
+        if (filter) params.set('filter', filter);
+        params.set('page', page.toString());
+        return `/search?${params.toString()}`;
+      }
+      ```
+    - 모든 페이지 링크에 `buildPageUrl()` 적용
+
+### Minor UI Adjustments
+- **Header**: 패딩 조정 (`py-6` → `py-4`)
+- **Header**: 로그아웃 버튼에 `onclick={handleLogout}` 추가
+- **SearchBar**: Status bar 레이아웃 조정 (로그인 전/후 일관성)
+
+### Files Modified
+- `src/lib/components/SearchBar.svelte`
+- `src/lib/components/Pagination.svelte`
+- `src/lib/components/Header.svelte`
+- `src/routes/search/+page.svelte`
+- `docs/adr/ADR-001-system-architecture.md` (GitHub SSO Token 보안 정책 추가)
+
+### User Feedback & Iterations
+1. **버튼 Disable 처리**:
+   - ❌ 초기: Alert으로 검증
+   - ✅ 최종: 버튼 disable + 시각적 피드백
+2. **Enter 키 동작**:
+   - ❌ 초기: 힌트만 표시, 기능 없음
+   - ✅ 최종: 로그인/로그아웃 상태에 따라 분기 처리
+3. **Pagination 구조**:
+   - ❌ 1차: 7개 요소 (ellipsis 포함)
+   - ❌ 2차: 텍스트 기반 `«`, `»`
+   - ✅ 최종: 5개 숫자 + Lucide 아이콘
+4. **Disable 처리**:
+   - ❌ 초기: `aria-disabled`만 사용
+   - ✅ 최종: `pointer-events-none` 추가로 실제 클릭 차단
+
+---
+
 ## 2026-01-12
 
 ### Search URL Parameter Implementation
