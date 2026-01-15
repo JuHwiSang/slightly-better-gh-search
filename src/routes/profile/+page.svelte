@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import IconLucideLogOut from '~icons/lucide/log-out';
 	import IconLucideUserMinus from '~icons/lucide/user-minus';
 	import IconLucideArrowLeft from '~icons/lucide/arrow-left';
 	import IconLucideAlertTriangle from '~icons/lucide/alert-triangle';
 	import ProfileCard from '$lib/components/ProfileCard.svelte';
 	import UsageCard from '$lib/components/UsageCard.svelte';
+	import { authState } from '$lib/stores/auth.svelte';
 
 	let deleteDialog: HTMLDialogElement | undefined;
 
@@ -14,6 +16,11 @@
 
 	function closeDeleteDialog() {
 		deleteDialog?.close();
+	}
+
+	async function handleLogout() {
+		await authState.signOut();
+		goto('/');
 	}
 
 	function handleDeleteAccount() {
@@ -43,7 +50,12 @@
 		</header>
 
 		<!-- Profile Card -->
-		<ProfileCard />
+		<ProfileCard
+			name={authState.user?.name}
+			email={authState.user?.email}
+			avatarUrl={authState.user?.avatar_url}
+			isGitHubConnected={authState.isAuthenticated}
+		/>
 
 		<!-- Usage Card -->
 		<UsageCard />
@@ -51,6 +63,7 @@
 		<!-- Action Buttons -->
 		<section class="flex flex-col gap-4">
 			<button
+				onclick={handleLogout}
 				class="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-700 bg-[#232f48] font-bold text-white transition-colors hover:bg-[#2a3855]"
 			>
 				<IconLucideLogOut class="h-5 w-5" />
