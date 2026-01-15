@@ -298,6 +298,28 @@ This project provides an upgraded version of GitHub Code Search with the followi
     ```
 
 
+### 📝 User Feedback Log (2026-01-15)
+
+#### 10. **문서 업데이트 프로토콜 위반** ⭐⭐⭐
+- **상황**: GitHub OAuth 구현 완료 후 TRB-001 파일을 수정하고 DEV_LOG.md 업데이트를 누락
+- **재사용 가능한 교훈**:
+  - ❌ **TRB (Troubleshooting) 파일은 절대 수정하지 않음**
+    - TRB는 문제 해결 가이드로, 원본 그대로 유지
+    - 완료 여부나 구현 세부사항을 TRB에 추가하면 안 됨
+  - ✅ **구현 완료 시 반드시 DEV_LOG.md 업데이트**
+    - 기술적 구현 세부사항
+    - 변경 이력 및 날짜
+    - 주요 결정 사항
+  - ✅ **문서 업데이트 체크리스트** (GEMINI.md 라인 36-40 참조):
+    1. GEMINI.md: 재사용 가능한 패턴/원칙만 기록
+    2. DEV_LOG.md: 기술 구현 세부사항 및 이력
+    3. **둘 다 업데이트해야 완전함**
+  - **판단 기준**: 
+    - "이 변경사항이 다른 개발자가 알아야 할 구현 이력인가?" → DEV_LOG.md
+    - "이 실수가 미래에 반복될 수 있는 패턴인가?" → GEMINI.md
+    - "이 파일이 문제 해결 가이드인가?" → 수정 금지 (TRB)
+
+
 ### 📋 개발 체크리스트
 
 새로운 UI 요소 구현 시:
@@ -410,13 +432,17 @@ This project provides an upgraded version of GitHub Code Search with the followi
 slightly-better-gh-search/
 ├── src/
 │   ├── routes/
-│   │   ├── +layout.svelte           # 공통 레이아웃 (Header 포함)
+│   │   ├── +layout.svelte           # 공통 레이아웃 (세션 초기화)
 │   │   ├── +page.svelte              # 메인 페이지 (/)
+│   │   ├── auth/
+│   │   │   └── callback/
+│   │   │       └── +server.ts        # OAuth callback 처리
 │   │   ├── search/
 │   │   │   └── +page.svelte          # 검색 결과 페이지 (/search)
 │   │   └── profile/
 │   │       └── +page.svelte          # 프로필 페이지 (/profile)
 │   ├── lib/
+│   │   ├── supabase.ts               # Supabase 브라우저 클라이언트
 │   │   ├── components/
 │   │   │   ├── Header.svelte
 │   │   │   ├── SearchBar.svelte
@@ -430,6 +456,8 @@ slightly-better-gh-search/
 │   │   └── utils/
 │   │       ├── filterEvaluator.ts    # 필터 표현식 안전 평가
 │   │       └── github.ts             # GitHub API 호출 (Supabase Edge Function 경유)
+│   ├── hooks.server.ts               # 서버 훅 (세션 관리)
+│   ├── app.d.ts                      # TypeScript 타입 정의
 │   └── app.css                       # 글로벌 스타일
 ├── supabase/
 │   └── functions/
@@ -438,6 +466,7 @@ slightly-better-gh-search/
 ├── docs/
 │   ├── design/                       # 디자인 참고 파일
 │   ├── adr/                          # Architecture Decision Records
+│   ├── troubleshooting/              # 트러블슈팅 가이드
 │   └── github/                       # GitHub API 문서
 └── GEMINI.md                         # 이 파일
 ```
@@ -452,16 +481,37 @@ slightly-better-gh-search/
   - Rate limit 관리
   - 결과 반환
 
-#### 2. **인증 흐름** (Supabase Auth)
-- GitHub OAuth 로그인
-- 세션 관리 (Supabase Auth)
-- 보호된 라우트: `/search`, `/profile`
-- **상태 관리**: `auth.svelte.ts`
-  - Svelte 5 `$state` runes 사용
-  - `authState.isAuthenticated`: 로그인 여부
-  - `authState.user`: 사용자 정보
-  - `authState.login()`: 로그인 처리
-  - `authState.logout()`: 로그아웃 처리
+#### 2. **인증 흐름** (Supabase Auth + GitHub OAuth)
+- **구현 완료**: GitHub OAuth 로그인 (2026-01-15)
+- **권한 스코프**: `read:user` (이메일 접근으로 중복 로그인 방지)
+- **세션 관리**: Supabase Auth (서버 사이드 세션)
+- **보호된 라우트**: `/search`, `/profile`
+
+**인증 플로우**:
+1. 사용자가 "Sign in with GitHub" 버튼 클릭
+2. `authState.signInWithGitHub(redirectPath?)` 호출
+   - 현재 페이지 또는 지정된 경로를 `next` 파라미터로 전달
+3. GitHub OAuth 페이지로 리다이렉트
+4. GitHub 인증 완료 → `/auth/callback?code=xxx&next=/search`
+5. Callback handler에서:
+   - `code` → `session` 교환 (`exchangeCodeForSession`)
+   - Origin 검증 (Open Redirect 방지)
+   - `next` 경로로 리다이렉트
+6. 클라이언트에서 세션 로드 (`loadSession()`)
+
+**주요 파일**:
+- `src/lib/supabase.ts`: Supabase 브라우저 클라이언트
+- `src/hooks.server.ts`: 서버 훅 (모든 요청에서 세션 확인)
+- `src/routes/auth/callback/+server.ts`: OAuth callback 처리
+- `src/lib/stores/auth.svelte.ts`: 인증 상태 관리
+
+**상태 관리** (`auth.svelte.ts`):
+- Svelte 5 `$state` runes 사용
+- `authState.isAuthenticated`: 로그인 여부
+- `authState.user`: 사용자 정보 (id, name, email, avatar_url)
+- `authState.signInWithGitHub(redirectPath?)`: GitHub OAuth 로그인
+- `authState.signOut()`: 로그아웃
+- `authState.loadSession()`: 세션 로드 및 변경 감지
 
 #### 3. **필터 표현식 평가**
 - **보안 우선**: `eval()` 사용 금지
@@ -497,5 +547,5 @@ slightly-better-gh-search/
 
 ---
 
-*Last Updated: 2026-01-13*  
+*Last Updated: 2026-01-15*  
 *This file should be updated whenever the user identifies issues or provides important feedback.*

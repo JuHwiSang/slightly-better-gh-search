@@ -4,6 +4,98 @@
 
 ---
 
+---
+
+## 2026-01-15
+
+### GitHub OAuth Implementation (Supabase)
+- **변경사항**: GitHub OAuth 로그인 기능 구현 완료
+- **주요 구현**:
+  - **Supabase 클라이언트** (`src/lib/supabase.ts`):
+    - `@supabase/ssr`의 `createBrowserClient` 사용
+    - 환경 변수: `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`
+  - **서버 훅** (`src/hooks.server.ts`):
+    - 모든 요청에서 Supabase 서버 클라이언트 생성
+    - 쿠키 기반 세션 관리
+    - `event.locals.supabase`, `event.locals.safeGetSession` 제공
+  - **OAuth Callback** (`src/routes/auth/callback/+server.ts`):
+    - `code` → `session` 교환 (`exchangeCodeForSession`)
+    - `next` 파라미터로 리다이렉트 경로 지정
+    - **보안**: Origin 검증으로 Open Redirect 방지
+      ```typescript
+      const nextUrl = new URL(next, url.origin);
+      if (nextUrl.origin === url.origin) {
+        redirect(303, nextUrl.pathname + nextUrl.search);
+      }
+      ```
+  - **인증 상태 관리** (`src/lib/stores/auth.svelte.ts`):
+    - Svelte 5 `$state` runes 사용
+    - `signInWithGitHub(redirectPath?)`: 로그인 후 리다이렉트 경로 지정 가능
+    - `signOut()`: 로그아웃
+    - `loadSession()`: 세션 로드 및 `onAuthStateChange` 리스너 등록
+  - **UI 연동**:
+    - `SearchBar.svelte`: 로그인 버튼에서 검색 URL 생성 후 `signInWithGitHub(redirectPath)` 호출
+    - `Header.svelte`: 실제 사용자 데이터 표시 (avatar, name, email)
+    - `+layout.svelte`: `onMount`에서 `loadSession()` 호출
+  - **TypeScript 타입** (`src/app.d.ts`):
+    - `App.Locals`에 `supabase`, `safeGetSession` 추가
+    - `App.PageData`에 `session` 추가
+
+### OAuth Flow
+1. 사용자가 검색어 입력 후 "Sign in with GitHub" 클릭
+2. `handleGitHubLogin()`이 `/search?query=xxx&filter=yyy` URL 생성
+3. `signInWithGitHub('/search?query=xxx&filter=yyy')` 호출
+4. Callback URL에 `next` 파라미터 포함: `/auth/callback?next=/search?query=xxx`
+5. GitHub OAuth 페이지로 리다이렉트
+6. GitHub 인증 완료 → `/auth/callback?code=xxx&next=/search?query=xxx`
+7. Callback handler:
+   - `code` → `session` 교환
+   - Origin 검증 (`new URL(next, url.origin)`)
+   - `/search?query=xxx`로 리다이렉트
+8. 클라이언트에서 세션 로드 및 검색 결과 표시
+
+### Security Improvements
+- **Open Redirect 방지**:
+  - ❌ 초기: `next.startsWith('/')` 단순 체크
+  - ✅ 최종: `new URL(next, url.origin)` 파싱 후 origin 검증
+  - 악의적인 절대 URL 차단
+
+### User Feedback & Iterations
+1. **Redirect 경로 지정**:
+   - ❌ 초기: 현재 페이지로만 리다이렉트
+   - ✅ 최종: `signInWithGitHub(redirectPath?)` 파라미터로 지정 가능
+   - 예: 메인 페이지에서 검색어 입력 → 로그인 → 검색 결과 페이지
+2. **Origin 검증**:
+   - ❌ 초기: `startsWith('/')` 단순 체크
+   - ✅ 최종: `new URL()` 파싱 후 origin 비교
+3. **문서화 실수**:
+   - ❌ TRB-001 파일 수정 (트러블슈팅 가이드는 원본 유지해야 함)
+   - ❌ DEV_LOG.md 업데이트 누락
+   - **교훈**: 구현 완료 시 DEV_LOG.md 업데이트 필수
+
+### Files Created
+- `src/lib/supabase.ts`
+- `src/hooks.server.ts`
+- `src/routes/auth/callback/+server.ts`
+
+### Files Modified
+- `src/lib/stores/auth.svelte.ts`
+- `src/lib/components/SearchBar.svelte`
+- `src/lib/components/Header.svelte`
+- `src/routes/+layout.svelte`
+- `src/app.d.ts`
+- `GEMINI.md` (인증 흐름 문서화)
+
+### Known Issues
+- 일부 버그 존재 (추후 수정 예정)
+
+### Next Steps
+- [ ] 버그 수정
+- [ ] 로그인 필요한 페이지 보호 (middleware)
+- [ ] 에러 핸들링 개선
+
+---
+
 ## 2026-01-12/13
 
 ### SearchBar UX Improvements
