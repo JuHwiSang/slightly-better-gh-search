@@ -15,8 +15,8 @@
 		showDropdown = false;
 	}
 
-	function handleLogout() {
-		authState.logout();
+	async function handleLogout() {
+		await authState.signOut();
 		closeDropdown();
 	}
 </script>
@@ -38,7 +38,8 @@
 				toggleDropdown();
 			}}
 			class="size-10 cursor-pointer rounded-full border border-gray-700 bg-cover bg-center bg-no-repeat transition-colors hover:border-accent-blue"
-			style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=GitScout');"
+			style="background-image: url('{authState.user?.avatar_url ||
+				'https://api.dicebear.com/7.x/avataaars/svg?seed=GitScout'}');"
 			aria-label="Profile menu"
 		>
 		</button>
@@ -57,11 +58,14 @@
 					<div class="flex items-center gap-3">
 						<div
 							class="size-12 rounded-full border border-gray-700 bg-cover bg-center bg-no-repeat"
-							style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=GitScout');"
+							style="background-image: url('{authState.user?.avatar_url ||
+								'https://api.dicebear.com/7.x/avataaars/svg?seed=GitScout'}');"
 						></div>
 						<div class="min-w-0 flex-1">
-							<p class="truncate text-sm font-semibold text-white">Dev User</p>
-							<p class="truncate text-xs text-text-muted">dev@example.com</p>
+							<p class="truncate text-sm font-semibold text-white">
+								{authState.user?.name || 'User'}
+							</p>
+							<p class="truncate text-xs text-text-muted">{authState.user?.email || ''}</p>
 						</div>
 					</div>
 				</div>

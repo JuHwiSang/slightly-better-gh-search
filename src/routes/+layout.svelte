@@ -1,8 +1,14 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import { authState } from '$lib/stores/auth.svelte';
+	import { onMount } from 'svelte';
 
 	let { children } = $props();
+
+	onMount(() => {
+		authState.loadSession();
+	});
 </script>
 
 <svelte:head>

@@ -15,10 +15,16 @@
 	// Reactive state for button disabled status
 	let isQueryEmpty = $derived(!query.trim());
 
-	// TODO: Replace with actual GitHub OAuth login
-	function handleGitHubLogin() {
-		console.log('GitHub login clicked');
-		authState.isAuthenticated = true;
+	async function handleGitHubLogin() {
+		// Build search URL with current query/filter to redirect after login
+		const params = new URLSearchParams();
+		params.set('query', query.trim());
+		if (filter.trim()) {
+			params.set('filter', filter.trim());
+		}
+		const redirectPath = `/search?${params.toString()}`;
+
+		await authState.signInWithGitHub(redirectPath);
 	}
 
 	function handleExecute() {
