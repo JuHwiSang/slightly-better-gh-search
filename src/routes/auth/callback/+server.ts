@@ -9,17 +9,20 @@ export const GET: RequestHandler = async ({ url, locals: { supabase } }) => {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (!error) {
             // Validate that 'next' URL has the same origin (security: prevent open redirect)
+            let nextUrl: URL | null = null;
             try {
-                const nextUrl = new URL(next, url.origin);
-                if (nextUrl.origin === url.origin) {
-                    redirect(303, nextUrl.pathname + nextUrl.search);
-                }
+                nextUrl = new URL(next, url.origin);
             } catch {
-                // Invalid URL, redirect to home
+                // Invalid URL, will fall through to home redirect
+                throw redirect(307, '/');
+            }
+
+            if (nextUrl && nextUrl.origin === url.origin) {
+                throw redirect(307, nextUrl.pathname + nextUrl.search);
             }
         }
     }
 
     // If no code, error, or invalid next URL, redirect to home
-    redirect(303, '/');
+    throw redirect(307, '/');
 };
