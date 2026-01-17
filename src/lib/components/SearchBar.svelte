@@ -101,10 +101,7 @@
 			<div></div>
 			<button
 				onclick={handleGitHubLogin}
-				disabled={isQueryEmpty}
-				class="flex h-12 items-center justify-center gap-2.5 rounded-lg px-6 text-base font-medium shadow-md transition-all {isQueryEmpty
-					? 'cursor-not-allowed bg-gray-700 text-gray-500'
-					: 'bg-accent-blue text-white hover:bg-blue-600 hover:shadow-lg active:scale-[0.98]'}"
+				class="flex h-12 items-center justify-center gap-2.5 rounded-lg bg-accent-blue px-6 text-base font-medium text-white shadow-md transition-all hover:bg-blue-600 hover:shadow-lg active:scale-[0.98]"
 			>
 				<IconLucideGithub class="text-[20px]" />
 				<span>Sign in with GitHub</span>
