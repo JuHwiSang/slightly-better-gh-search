@@ -4,6 +4,108 @@
 
 ---
 
+## 2026-01-17
+
+### Profile Page User Data Integration
+- **변경사항**: 프로필 페이지가 실제 사용자 데이터를 사용하도록 수정
+- **주요 구현**:
+  - `profile/+page.svelte`:
+    - `authState` import 추가
+    - `ProfileCard`에 실제 사용자 데이터 전달:
+      ```svelte
+      <ProfileCard
+        name={authState.user?.name}
+        email={authState.user?.email}
+        avatarUrl={authState.user?.avatar_url}
+        isGitHubConnected={authState.isAuthenticated}
+      />
+      ```
+    - 로그아웃 핸들러 구현:
+      ```typescript
+      async function handleLogout() {
+        await authState.signOut();
+        goto('/');
+      }
+      ```
+    - 로그아웃 버튼에 `onclick={handleLogout}` 연결
+- **효과**: 
+  - 하드코딩된 더미 데이터 대신 실제 GitHub 사용자 정보 표시
+  - 로그아웃 시 홈(`/`)으로 자동 리다이렉트
+
+### GitHub Login Button UX Improvement
+- **변경사항**: GitHub 로그인 버튼이 항상 활성화되도록 수정
+- **이유**: 사용자가 검색어를 입력하지 않아도 언제든지 로그인할 수 있어야 함
+- **주요 구현**:
+  - `SearchBar.svelte`:
+    - GitHub 로그인 버튼에서 `disabled={isQueryEmpty}` 제거
+    - 조건부 스타일링 제거 (항상 파란색 활성 상태)
+    - Execute 버튼은 여전히 query 검증 유지
+- **Before**:
+  ```svelte
+  <button
+    disabled={isQueryEmpty}
+    class="{isQueryEmpty ? 'cursor-not-allowed bg-gray-700' : 'bg-accent-blue'}"
+  >
+  ```
+- **After**:
+  ```svelte
+  <button
+    class="bg-accent-blue hover:bg-blue-600"
+  >
+  ```
+
+### OAuth Redirect Bug Fix
+- **문제**: GitHub 로그인 후 `next` 파라미터가 무시되고 항상 `/`로 리다이렉트됨
+- **원인**: SvelteKit의 `redirect()`는 throw해야 하는데, throw 없이 호출하여 코드가 계속 실행됨
+- **해결**:
+  - `auth/callback/+server.ts`:
+    1. **1차 시도**: `redirect()` → `throw redirect()` 변경
+       - 문제: catch 블록에서 `err instanceof Response` 체크가 실패
+    2. **2차 시도**: catch 블록에서 `TypeError`만 잡도록 수정
+       - URL 파싱 에러만 catch, redirect는 re-throw
+    3. **최종 해결**: URL 파싱만 try-catch로 감싸고, 검증/리다이렉트는 밖으로 분리
+       ```typescript
+       let nextUrl: URL | null = null;
+       try {
+         nextUrl = new URL(next, url.origin);
+       } catch {
+         // Invalid URL
+         throw redirect(307, '/');
+       }
+       
+       if (nextUrl && nextUrl.origin === url.origin) {
+         throw redirect(307, nextUrl.pathname + nextUrl.search);
+       }
+       ```
+- **효과**: 
+  - 검색어 입력 → 로그인 → 검색 결과 페이지로 정상 리다이렉트
+  - Open Redirect 방지 로직 유지
+
+### User Feedback & Iterations
+1. **프로필 페이터 데이터**:
+   - ❌ 초기: 하드코딩된 더미 데이터 (`name = 'Dev User'`)
+   - ✅ 최종: `authState.user` 실제 데이터 사용
+2. **로그아웃 리다이렉트**:
+   - 요구사항: "로그아웃하면 로그아웃됨 + '/'로 이동까지도"
+   - 구현: `handleLogout()` 함수에서 `goto('/')` 추가
+3. **GitHub 로그인 버튼**:
+   - 피드백: "깃헙 로그인 버튼은 기본적으로 언제나 활성화되어 있어야함"
+   - 구현: `disabled` 속성 및 조건부 스타일 제거
+4. **OAuth 리다이렉트 버그**:
+   - 피드백: "왜째선지 로그인 후에 리다이렉트가 '/'로만 됨. next로 안가고..."
+   - 디버깅: "err instanceof Response에 안잡혀서 throw redirect('/')되어버린다야"
+   - 최종 피드백: "얌마 걍 URL 에러만 잡고 비교와 throw 로직은 try catch 밖으로 빼"
+   - 해결: 코드 구조 개선으로 명확성 향상
+
+### Files Modified
+- `src/routes/profile/+page.svelte`
+- `src/lib/components/SearchBar.svelte`
+- `src/routes/auth/callback/+server.ts`
+
+### Commits
+- `feat: able to click github login even with empty query` (cace9d2)
+- `fix: now able to redirect to search after login` (887c700)
+
 ---
 
 ## 2026-01-15
