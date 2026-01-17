@@ -29,6 +29,7 @@
 		"prettier": "^3.7.4",
 		"prettier-plugin-svelte": "^3.4.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
+		"supabase": "^2.72.8",
 		"svelte": "^5.46.1",
 		"svelte-check": "^4.3.5",
 		"tailwindcss": "^4.1.18",
@@ -39,7 +40,8 @@
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
-			"esbuild"
+			"esbuild",
+			"supabase"
 		],
 		"overrides": {
 			"cookie": "^0.7.0"
