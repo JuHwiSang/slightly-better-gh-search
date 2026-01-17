@@ -2,18 +2,13 @@
 	import IconLucideGitBranch from '~icons/lucide/git-branch';
 
 	interface Props {
-		name?: string;
-		email?: string;
-		avatarUrl?: string;
-		isGitHubConnected?: boolean;
+		name: string;
+		email: string;
+		avatarUrl: string;
+		isGitHubConnected: boolean;
 	}
 
-	let {
-		name = 'Dev User',
-		email = 'dev@example.com',
-		avatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed=GitScout',
-		isGitHubConnected = true
-	}: Props = $props();
+	let { name, email, avatarUrl, isGitHubConnected }: Props = $props();
 </script>
 
 <section class="overflow-hidden rounded-xl border border-border-dark bg-card-dark shadow-sm">

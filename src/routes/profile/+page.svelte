@@ -51,9 +51,9 @@
 
 		<!-- Profile Card -->
 		<ProfileCard
-			name={authState.user?.name}
-			email={authState.user?.email}
-			avatarUrl={authState.user?.avatar_url}
+			name={authState.user?.name!}
+			email={authState.user?.email!}
+			avatarUrl={authState.user?.avatar_url!}
 			isGitHubConnected={authState.isAuthenticated}
 		/>
 
