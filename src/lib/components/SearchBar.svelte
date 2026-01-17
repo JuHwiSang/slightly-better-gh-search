@@ -97,18 +97,19 @@
 	<div
 		class="flex items-center justify-between border-t border-terminal-border bg-[#0f1318] px-6 py-3 font-mono text-xs text-text-muted transition-colors duration-300 select-none"
 	>
+		<div></div>
 		{#if !authState.isAuthenticated}
-			<div></div>
 			<button
 				onclick={handleGitHubLogin}
-				class="flex h-12 items-center justify-center gap-2.5 rounded-lg bg-accent-blue px-6 text-base font-medium text-white shadow-md transition-all hover:bg-blue-600 hover:shadow-lg active:scale-[0.98]"
+				class="group flex items-center gap-2 tracking-wider uppercase transition-colors hover:text-white"
 			>
-				<IconLucideGithub class="text-[20px]" />
+				<IconLucideGithub class="h-4 w-4" />
 				<span>Sign in with GitHub</span>
+				<IconLucideCornerDownLeft
+					class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+				/>
 			</button>
-			<div></div>
 		{:else}
-			<div></div>
 			<button
 				onclick={handleExecute}
 				disabled={isQueryEmpty}
