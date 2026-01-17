@@ -4,9 +4,138 @@
 
 ---
 
+## 2026-01-17 (Afternoon)
+
+### UI/UX Improvements - Login Flow Refinement
+
+#### SearchBar GitHub Login Button Redesign
+
+- **변경사항**: GitHub 로그인 버튼을 EXECUTE 버튼과 동일한 스타일로 변경
+- **주요 구현**:
+  - 큰 파란색 버튼 → 작고 간결한 텍스트 버튼
+  - Enter 키 아이콘 추가 (일관성)
+  - GitHub 아이콘 크기 축소 (`h-4 w-4`)
+  - 우측 정렬 유지
+  - Before:
+    ```svelte
+    <button class="flex h-12 items-center justify-center gap-2.5 rounded-lg bg-accent-blue px-6 text-base font-medium text-white shadow-md">
+      <IconLucideGithub class="text-[20px]" />
+      <span>Sign in with GitHub</span>
+    </button>
+    ```
+  - After:
+    ```svelte
+    <button class="group flex items-center gap-2 tracking-wider uppercase transition-colors hover:text-white">
+      <IconLucideGithub class="h-4 w-4" />
+      <span>Sign in with GitHub</span>
+      <IconLucideCornerDownLeft class="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+    </button>
+    ```
+- **효과**: SearchBar의 로그인 전/후 UI 일관성 향상
+
+#### Header Profile Dropdown - Login Card
+
+- **변경사항**: 로그인 안 된 사용자를 위한 드롭다운 카드 추가
+- **주요 구현**:
+  - 조건부 렌더링: `{#if !authState.isAuthenticated}`
+  - 로그인 카드 구성:
+    - "Not signed in" 타이틀
+    - "Sign in to start searching" 설명 (유저 친화적 문구)
+    - GitHub 로그인 버튼 (카드 스타일, 파란색 테두리 + 반투명 배경)
+  - 드롭다운 너비 증가: `w-64` → `w-72` (텍스트 잘림 방지)
+  - 설명 텍스트에 `leading-relaxed` 추가
+- **디폴트 프로필 아이콘 변경**:
+  - ❌ 초기: dicebear 아바타
+  - ❌ 2차: GitHub 아이콘 (상표권 문제)
+  - ❌ 3차: UserCircle 아이콘 (이중 원 효과)
+  - ✅ 최종: User 아이콘 (사람 실루엣, `h-5 w-5`)
+- **효과**: 로그인 전 상태가 명확하게 표시되고, 로그인 유도 개선
+
+#### Profile Page Authentication Protection
+
+- **변경사항**: 서버 사이드 인증 체크로 `/profile` 페이지 보호
+- **주요 구현**:
+  - `profile/+page.server.ts` 신규 생성:
+    ```typescript
+    export const load: PageServerLoad = async ({ locals }) => {
+      const { session } = await locals.safeGetSession();
+      if (!session) {
+        throw redirect(303, "/");
+      }
+      return { session };
+    };
+    ```
+  - ❌ 초기: 클라이언트 사이드 체크 (`$effect`)
+  - ✅ 최종: 서버 사이드 체크 (`+page.server.ts`)
+- **장점**:
+  - 더 안전함 (클라이언트 우회 불가)
+  - 깜빡임 없음 (페이지 렌더링 전 리다이렉트)
+  - 성능 향상 (불필요한 렌더링 방지)
+
+#### ProfileCard Props Cleanup
+
+- **변경사항**: 디폴트값 제거, required props로 변경
+- **이유**: `/profile` 페이지가 인증된 사용자만 접근 가능하므로 디폴트값 불필요
+- **주요 구현**:
+  - Props 타입 변경: `name?: string` → `name: string`
+  - 디폴트값 제거: `name = 'Dev User'` 등 삭제
+  - `+page.svelte`에서 non-null assertion 추가:
+    ```svelte
+    <ProfileCard
+      name={authState.user?.name!}
+      email={authState.user?.email!}
+      avatarUrl={authState.user?.avatar_url!}
+      isGitHubConnected={authState.isAuthenticated}
+    />
+    ```
+- **효과**: 코드 명확성 향상, 불필요한 fallback 로직 제거
+
+### User Feedback & Iterations
+
+1. **SearchBar 버튼 디자인**:
+   - 피드백: "서치바 저거 디자인 상태가 좀 영.... 메롱함... 버튼은 EXECUTE처럼
+     작게 해야하고"
+   - 해결: 큰 버튼 → 작은 텍스트 버튼으로 변경
+2. **프로필 드롭다운**:
+   - 피드백: "로그인 안되어있을 때, 프로필카드는 로그인 그거여야함"
+   - 해결: 조건부 렌더링으로 로그인 카드 추가
+3. **디폴트 아이콘**:
+   - 피드백: "지금꺼 너무 안어울림" → "깃헙보단 다른걸로" → "원 안에 또 원....?"
+   - 최종: User 아이콘 (사람 실루엣)
+4. **설명 텍스트**:
+   - 피드백: "'Sign in to access GitHub code search'? 뉘양스가 좀 이상하잖음"
+   - 해결: "Sign in to start searching" (유저 친화적)
+5. **텍스트 잘림**:
+   - 피드백: "설명 이거 짤림"
+   - 해결: 드롭다운 너비 증가 + `leading-relaxed`
+6. **인증 체크 방식**:
+   - 질문: "+page.server.ts 에서는 못하나?"
+   - 답변: 서버 사이드가 더 권장됨 (보안, 성능)
+   - 해결: 클라이언트 체크 → 서버 체크로 변경
+7. **ProfileCard 디폴트값**:
+   - 피드백: "이제 디폴트값들 이거 없어야하지 않나?"
+   - 해결: 모든 props를 required로 변경
+
+### Files Modified
+
+- `src/lib/components/SearchBar.svelte`
+- `src/lib/components/Header.svelte`
+- `src/lib/components/ProfileCard.svelte`
+- `src/routes/profile/+page.svelte`
+- `src/routes/profile/+page.server.ts` (신규)
+
+### Commits
+
+- `ui: make github login button more simple` (2314f1b)
+- `ui: make default user profile more pretty` (5940fb3)
+- `feat: redirect to '/' when access /profile without authentication` (aa497bd)
+
+---
+
 ## 2026-01-17
 
 ### Profile Page User Data Integration
+
 - **변경사항**: 프로필 페이지가 실제 사용자 데이터를 사용하도록 수정
 - **주요 구현**:
   - `profile/+page.svelte`:
@@ -24,15 +153,16 @@
       ```typescript
       async function handleLogout() {
         await authState.signOut();
-        goto('/');
+        goto("/");
       }
       ```
     - 로그아웃 버튼에 `onclick={handleLogout}` 연결
-- **효과**: 
+- **효과**:
   - 하드코딩된 더미 데이터 대신 실제 GitHub 사용자 정보 표시
   - 로그아웃 시 홈(`/`)으로 자동 리다이렉트
 
 ### GitHub Login Button UX Improvement
+
 - **변경사항**: GitHub 로그인 버튼이 항상 활성화되도록 수정
 - **이유**: 사용자가 검색어를 입력하지 않아도 언제든지 로그인할 수 있어야 함
 - **주요 구현**:
@@ -55,33 +185,37 @@
   ```
 
 ### OAuth Redirect Bug Fix
+
 - **문제**: GitHub 로그인 후 `next` 파라미터가 무시되고 항상 `/`로 리다이렉트됨
-- **원인**: SvelteKit의 `redirect()`는 throw해야 하는데, throw 없이 호출하여 코드가 계속 실행됨
+- **원인**: SvelteKit의 `redirect()`는 throw해야 하는데, throw 없이 호출하여
+  코드가 계속 실행됨
 - **해결**:
   - `auth/callback/+server.ts`:
     1. **1차 시도**: `redirect()` → `throw redirect()` 변경
        - 문제: catch 블록에서 `err instanceof Response` 체크가 실패
     2. **2차 시도**: catch 블록에서 `TypeError`만 잡도록 수정
        - URL 파싱 에러만 catch, redirect는 re-throw
-    3. **최종 해결**: URL 파싱만 try-catch로 감싸고, 검증/리다이렉트는 밖으로 분리
+    3. **최종 해결**: URL 파싱만 try-catch로 감싸고, 검증/리다이렉트는 밖으로
+       분리
        ```typescript
        let nextUrl: URL | null = null;
        try {
          nextUrl = new URL(next, url.origin);
        } catch {
          // Invalid URL
-         throw redirect(307, '/');
+         throw redirect(307, "/");
        }
-       
+
        if (nextUrl && nextUrl.origin === url.origin) {
          throw redirect(307, nextUrl.pathname + nextUrl.search);
        }
        ```
-- **효과**: 
+- **효과**:
   - 검색어 입력 → 로그인 → 검색 결과 페이지로 정상 리다이렉트
   - Open Redirect 방지 로직 유지
 
 ### User Feedback & Iterations
+
 1. **프로필 페이터 데이터**:
    - ❌ 초기: 하드코딩된 더미 데이터 (`name = 'Dev User'`)
    - ✅ 최종: `authState.user` 실제 데이터 사용
@@ -93,16 +227,20 @@
    - 구현: `disabled` 속성 및 조건부 스타일 제거
 4. **OAuth 리다이렉트 버그**:
    - 피드백: "왜째선지 로그인 후에 리다이렉트가 '/'로만 됨. next로 안가고..."
-   - 디버깅: "err instanceof Response에 안잡혀서 throw redirect('/')되어버린다야"
-   - 최종 피드백: "얌마 걍 URL 에러만 잡고 비교와 throw 로직은 try catch 밖으로 빼"
+   - 디버깅: "err instanceof Response에 안잡혀서 throw
+     redirect('/')되어버린다야"
+   - 최종 피드백: "얌마 걍 URL 에러만 잡고 비교와 throw 로직은 try catch 밖으로
+     빼"
    - 해결: 코드 구조 개선으로 명확성 향상
 
 ### Files Modified
+
 - `src/routes/profile/+page.svelte`
 - `src/lib/components/SearchBar.svelte`
 - `src/routes/auth/callback/+server.ts`
 
 ### Commits
+
 - `feat: able to click github login even with empty query` (cace9d2)
 - `fix: now able to redirect to search after login` (887c700)
 
@@ -111,6 +249,7 @@
 ## 2026-01-15
 
 ### GitHub OAuth Implementation (Supabase)
+
 - **변경사항**: GitHub OAuth 로그인 기능 구현 완료
 - **주요 구현**:
   - **Supabase 클라이언트** (`src/lib/supabase.ts`):
@@ -136,7 +275,8 @@
     - `signOut()`: 로그아웃
     - `loadSession()`: 세션 로드 및 `onAuthStateChange` 리스너 등록
   - **UI 연동**:
-    - `SearchBar.svelte`: 로그인 버튼에서 검색 URL 생성 후 `signInWithGitHub(redirectPath)` 호출
+    - `SearchBar.svelte`: 로그인 버튼에서 검색 URL 생성 후
+      `signInWithGitHub(redirectPath)` 호출
     - `Header.svelte`: 실제 사용자 데이터 표시 (avatar, name, email)
     - `+layout.svelte`: `onMount`에서 `loadSession()` 호출
   - **TypeScript 타입** (`src/app.d.ts`):
@@ -144,6 +284,7 @@
     - `App.PageData`에 `session` 추가
 
 ### OAuth Flow
+
 1. 사용자가 검색어 입력 후 "Sign in with GitHub" 클릭
 2. `handleGitHubLogin()`이 `/search?query=xxx&filter=yyy` URL 생성
 3. `signInWithGitHub('/search?query=xxx&filter=yyy')` 호출
@@ -157,12 +298,14 @@
 8. 클라이언트에서 세션 로드 및 검색 결과 표시
 
 ### Security Improvements
+
 - **Open Redirect 방지**:
   - ❌ 초기: `next.startsWith('/')` 단순 체크
   - ✅ 최종: `new URL(next, url.origin)` 파싱 후 origin 검증
   - 악의적인 절대 URL 차단
 
 ### User Feedback & Iterations
+
 1. **Redirect 경로 지정**:
    - ❌ 초기: 현재 페이지로만 리다이렉트
    - ✅ 최종: `signInWithGitHub(redirectPath?)` 파라미터로 지정 가능
@@ -176,11 +319,13 @@
    - **교훈**: 구현 완료 시 DEV_LOG.md 업데이트 필수
 
 ### Files Created
+
 - `src/lib/supabase.ts`
 - `src/hooks.server.ts`
 - `src/routes/auth/callback/+server.ts`
 
 ### Files Modified
+
 - `src/lib/stores/auth.svelte.ts`
 - `src/lib/components/SearchBar.svelte`
 - `src/lib/components/Header.svelte`
@@ -189,9 +334,11 @@
 - `GEMINI.md` (인증 흐름 문서화)
 
 ### Known Issues
+
 - 일부 버그 존재 (추후 수정 예정)
 
 ### Next Steps
+
 - [ ] 버그 수정
 - [ ] 로그인 필요한 페이지 보호 (middleware)
 - [ ] 에러 핸들링 개선
@@ -201,6 +348,7 @@
 ## 2026-01-12/13
 
 ### SearchBar UX Improvements
+
 - **변경사항**: 입력 검증 및 키보드 네비게이션 개선
 - **주요 구현**:
   - **버튼 Disable 상태**:
@@ -216,6 +364,7 @@
   - **레이블 제거**: "Search:", "Filter:" 레이블 제거 (UI 단순화)
 
 ### Pagination Redesign
+
 - **변경사항**: 복잡한 ellipsis 로직 → 단순한 5개 숫자 구조
 - **주요 구현**:
   - **새로운 구조**: `« < [5개 숫자] > »`
@@ -237,6 +386,7 @@
     - Last/Next 버튼: 마지막 페이지일 때 `pointer-events-none`
 
 ### URL Parameter Persistence
+
 - **변경사항**: Pagination 이동 시 query/filter 유지
 - **주요 구현**:
   - `search/+page.svelte`:
@@ -248,20 +398,22 @@
       ```typescript
       function buildPageUrl(page: number): string {
         const params = new URLSearchParams();
-        if (query) params.set('query', query);
-        if (filter) params.set('filter', filter);
-        params.set('page', page.toString());
+        if (query) params.set("query", query);
+        if (filter) params.set("filter", filter);
+        params.set("page", page.toString());
         return `/search?${params.toString()}`;
       }
       ```
     - 모든 페이지 링크에 `buildPageUrl()` 적용
 
 ### Minor UI Adjustments
+
 - **Header**: 패딩 조정 (`py-6` → `py-4`)
 - **Header**: 로그아웃 버튼에 `onclick={handleLogout}` 추가
 - **SearchBar**: Status bar 레이아웃 조정 (로그인 전/후 일관성)
 
 ### Files Modified
+
 - `src/lib/components/SearchBar.svelte`
 - `src/lib/components/Pagination.svelte`
 - `src/lib/components/Header.svelte`
@@ -269,6 +421,7 @@
 - `docs/adr/ADR-001-system-architecture.md` (GitHub SSO Token 보안 정책 추가)
 
 ### User Feedback & Iterations
+
 1. **버튼 Disable 처리**:
    - ❌ 초기: Alert으로 검증
    - ✅ 최종: 버튼 disable + 시각적 피드백
@@ -288,9 +441,10 @@
 ## 2026-01-12
 
 ### Search URL Parameter Implementation
+
 - **변경사항**: 검색 기능에 URL 쿼리 파라미터 지원 추가
 - **주요 구현**:
-  - `SearchBar.svelte`: 
+  - `SearchBar.svelte`:
     - `$state` runes로 `query`, `filter` 상태 관리
     - `initialQuery`, `initialFilter` props 추가 (URL에서 받은 값으로 초기화)
     - `handleExecute()`: `URLSearchParams`로 URL 생성 후 `/search`로 이동
@@ -304,17 +458,19 @@
   - URL 구조: `/search?query={검색어}&filter={필터표현식}`
 
 ### Documentation Structure Decision
+
 - **피드백**: "ADR 너무 복잡함. 간단히 해라. 대안 넣을 필요도 없어"
 - **결정**: ADR-002 삭제, `docs/endpoints/search.md`로 이동
-- **이유**: 
+- **이유**:
   - URL 파라미터 구조는 너무 작고 당연한 결정이라 ADR로 하기엔 과함
   - 간단한 엔드포인트 문서가 더 적합
-- **교훈**: 
+- **교훈**:
   - ✅ ADR은 **중요하고 복잡한 아키텍처 결정**에만 사용
   - ✅ 간단한 API/엔드포인트 구조는 **별도 문서**로 관리
   - ❌ 모든 결정을 ADR로 만들 필요 없음
 
 ### User Feedback & Iterations
+
 1. **ADR 간소화**:
    - ❌ 초기: 대안 3개, 구현 세부사항 포함 (79줄)
    - ✅ 1차 수정: 대안 제거, 핵심만 유지 (34줄)
@@ -324,12 +480,14 @@
    - 해결: `placeholder-gray-500`으로 변경
 
 ### Files Modified
+
 - `src/lib/components/SearchBar.svelte`
 - `src/routes/search/+page.svelte`
 - `docs/endpoints/search.md` (신규)
 - `docs/adr/ADR-002-search-url-parameters.md` (삭제)
 
 ### Testing Results
+
 - ✅ 기본 검색: `/search?query=useState&filter=`
 - ✅ 필터 포함: `/search?query=react+hooks&filter=stars%3E100`
 - ✅ 직접 URL 접근 정상 작동
@@ -341,6 +499,7 @@
 ## 2026-01-11
 
 ### Authentication UI Implementation
+
 - **변경사항**: 로그인/로그아웃 상태에 따른 조건부 UI 구현
 - **주요 구현**:
   - `auth.svelte.ts`: Svelte 5 runes 기반 인증 상태 관리
@@ -353,11 +512,13 @@
   - `+page.svelte`: 하단 패딩 추가 (`pb-24`)로 중앙 정렬 개선
 
 ### User Feedback & Iterations
+
 1. **파일명 변경**: `auth.ts` → `auth.svelte.ts` (Svelte 5 runes 사용 명시)
 2. **디자인 가이드 활용**:
    - ❌ 초기: 디자인 파일(`main-login-required.html`)을 그대로 복사 시도
    - ✅ 최종: 디자인은 참고만 하고 프로젝트에 맞게 조정
-   - **교훈**: 로그인 전/후 완전히 다른 레이아웃 대신, 버튼만 변경하여 일관성 유지
+   - **교훈**: 로그인 전/후 완전히 다른 레이아웃 대신, 버튼만 변경하여 일관성
+     유지
 3. **Svelte 5 문법 전환**:
    - ❌ 초기: `writable` store 사용 (Svelte 4 방식)
    - ✅ 최종: `$state` runes 사용 (Svelte 5 방식)
@@ -372,6 +533,7 @@
    - 해결: 메인 페이지 하단 패딩 추가 (`pb-24`)
 
 ### Technical Decisions
+
 - **상태 관리**: Svelte 5 `$state` runes 사용 (store 대신)
   - 더 간결한 문법, 타입 안정성 향상
   - 클래스 기반으로 메서드 추가 가능
@@ -383,6 +545,7 @@
   - 가독성 향상 (로그인 전/후 비교 용이)
 
 ### Files Modified
+
 - `src/lib/stores/auth.svelte.ts` (신규)
 - `src/lib/components/SearchBar.svelte`
 - `src/lib/components/Header.svelte`
@@ -390,6 +553,7 @@
 - `docs/design/main-login-required.html` (신규, 참고용)
 
 ### Documentation Updates
+
 - `GEMINI.md`: 3개 새로운 교훈 추가
   - Svelte 5 Runes 사용
   - 조건부 스타일링 패턴
@@ -402,18 +566,21 @@
 ## 2026-01-10
 
 ### UI Simplification - Profile Page
+
 - **변경사항**: ProfileCard에서 프로필 사진 편집 버튼 제거
 - **이유**: 불필요한 UI 요소 제거 (UI 단순화 원칙)
 - **영향받은 파일**:
   - `ProfileCard.svelte`: 편집 버튼 및 관련 wrapper div 제거
   - `IconLucidePencil` import 제거
-- **배경**: 프로필 사진 편집 기능이 실제로 구현되지 않았으며, 현재 단계에서 불필요한 UI 요소로 판단
+- **배경**: 프로필 사진 편집 기능이 실제로 구현되지 않았으며, 현재 단계에서
+  불필요한 UI 요소로 판단
 
 ---
 
 ## 2026-01-09
 
 ### Icon System Implementation
+
 - **변경사항**: Material Symbols 폰트 → unplugin-icons (lucide) 전환
 - **이유**: 텍스트 기반 아이콘 대신 실제 아이콘 컴포넌트 사용
 - **영향받은 파일**:
@@ -427,11 +594,13 @@
 - **설정**: `vite.config.ts`에 unplugin-icons 추가
 
 ### CSS Import Order Fix
+
 - **문제**: PostCSS 에러 - `@import`가 `@theme` 블록 이후에 위치
 - **해결**: `layout.css`에서 모든 `@import`를 최상단으로 이동
 - **제거**: Material Symbols 폰트 import 및 관련 스타일
 
 ### UI Refinement (User Feedback)
+
 - **브랜딩 변경**:
   - 헤더: "GitScout_" → "Slightly Better GH Search"
   - 메인 타이틀: "SearchRepos" → "Slightly Better GH Search"
@@ -442,6 +611,7 @@
 - **아이콘 개선**: terminal → search (헤더)
 
 ### Initial Frontend Implementation
+
 - **완료된 페이지** (3개):
   - `/`: 메인 랜딩 페이지 (중앙 정렬, 그리드 배경)
   - `/search`: 검색 결과 페이지 (mock 데이터)
@@ -464,6 +634,7 @@
   - 키보드 이벤트 핸들러
 
 ### Dependencies Installed
+
 - `jsep`: 필터 표현식 파싱용
 - `unplugin-icons`: 아이콘 컴포넌트 시스템
 - `@iconify/json`: 아이콘 데이터
@@ -473,22 +644,26 @@
 ## 향후 작업 (TODO)
 
 ### Phase 6: Navigation & Interactions
+
 - [ ] URL 쿼리 파라미터 처리
 - [ ] 검색어 상태 관리
 - [ ] 페이지 간 라우팅 구현
 
 ### Phase 7: Filter Expression Evaluation
+
 - [ ] jsep를 사용한 필터 파서 구현
 - [ ] 안전한 표현식 평가 로직
 - [ ] 에러 핸들링
 
 ### Phase 8: Backend Integration
+
 - [ ] Supabase 설정
 - [ ] GitHub OAuth 구현
 - [ ] Edge Function 개발 (GitHub API 호출)
 - [ ] Upstash Redis 캐싱
 
 ### Additional Tasks
+
 - [ ] 반응형 디자인 개선
 - [ ] 실제 GitHub API 연동
 - [ ] 검색 기록 저장
