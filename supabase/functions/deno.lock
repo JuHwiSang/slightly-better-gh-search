@@ -1,0 +1,18 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:filtrex@3.1.0": "3.1.0"
+  },
+  "npm": {
+    "filtrex@3.1.0": {
+      "integrity": "sha512-mHzZ2wUISETF1OaEcNRiGz1ljuIV8c/C9td9qyAZ+wTwigkAk5RO9YrCxQKk5H9v7joDRFIBik9U5RTK9eXZ/A=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@supabase/functions-js@2",
+      "jsr:@supabase/supabase-js@2",
+      "npm:filtrex@3.1.0"
+    ]
+  }
+}

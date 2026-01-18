@@ -4,6 +4,122 @@
 
 ---
 
+## 2026-01-17 (Evening)
+
+### Search Edge Function Implementation
+
+- **변경사항**: GitHub Code Search API 통합 및 필터링 기능 구현
+- **주요 구현**:
+  - **ADR-003 작성**: 검색 기능 아키텍처 결정 문서화
+    - Cursor-based infinite scroll 채택
+    - Filtrex 라이브러리 사용 결정
+    - Repository 정보 전체 fetch 전략
+  - **타입 정의** (`supabase/functions/search/types.ts`):
+    - `SearchRequest`, `SearchResponse` 인터페이스
+    - `SearchResultItem`, `RepositoryInfo` 타입
+    - GitHub API 응답 타입 (`GitHubCodeSearchResponse`)
+  - **필터 평가기** (`supabase/functions/search/filter.ts`):
+    - Filtrex 라이브러리 사용 (안전한 표현식 평가)
+    - Repository 컨텍스트 매핑 (stars, forks, language 등)
+    - `evaluateFilter()`: 필터 표현식 평가
+    - `validateFilter()`: 필터 문법 검증
+  - **Edge Function** (`supabase/functions/search/index.ts`):
+    - GitHub OAuth 토큰 조회 (Supabase Auth)
+    - GitHub Code Search API 호출
+    - Repository 정보 병렬 fetch (`Promise.all`)
+    - 필터 적용 및 결과 부족 시 자동 다음 페이지 fetch
+    - Cursor 기반 페이지네이션
+    - CORS 헤더 설정
+  - **의존성 설정** (`deno.json`):
+    - `@supabase/supabase-js`: JSR 패키지
+    - `filtrex`: npm 패키지 (3.0.1)
+
+### Architecture Decisions (ADR-003)
+
+1. **Cursor-based Infinite Scroll**:
+   - 페이지네이션 대신 커서 기반 무한 스크롤 채택
+   - 효율적인 API 사용 (필요한 만큼만 fetch)
+   - Rate limit 관리 용이 (10 req/min)
+   - 자연스러운 UX (GitHub, Twitter 패턴)
+
+2. **Filtrex 라이브러리**:
+   - 직접 구현 대신 검증된 라이브러리 사용
+   - 안전한 표현식 평가 (`eval()` 사용 안 함)
+   - 개발 시간 단축 및 유지보수 용이
+
+3. **Repository 정보 전체 Fetch**:
+   - 모든 repository 필드 가져오기
+   - Redis 캐싱 준비 (Phase 3)
+   - 병렬 API 호출로 성능 최적화
+
+### API Specification
+
+**Request**:
+
+```typescript
+POST /functions/v1/search
+{
+  "query": "useState",
+  "filter": "stars > 100",
+  "cursor": null,
+  "limit": 30
+}
+```
+
+**Response**:
+
+```typescript
+{
+  "items": [...],
+  "nextCursor": "2",
+  "totalCount": 2341,
+  "hasMore": true
+}
+```
+
+### Filter Expression Examples
+
+- `stars > 100 && language == 'TypeScript'`
+- `forks >= 50 || updated_at > 1704067200000`
+- `is_fork == false && visibility == 'public'`
+
+### Implementation Details
+
+- **최대 페이지 fetch**: 3페이지 (과도한 API 호출 방지)
+- **페이지당 결과**: 100개 (GitHub 최대값)
+- **기본 limit**: 30개
+- **에러 처리**: TypeScript `unknown` 타입 사용, 명시적 타입 체크
+
+### TypeScript Lint Fixes
+
+- ❌ 초기: `jsr:` prefix 직접 사용
+- ✅ 최종: `deno.json` import map 활용
+- ❌ 초기: `error.message` 직접 접근
+- ✅ 최종: `error instanceof Error` 체크 후 안전하게 접근
+- ❌ 초기: 사용하지 않는 `GitHubCodeSearchItem` import
+- ✅ 최종: 불필요한 import 제거
+
+### Files Created
+
+- `docs/adr/ADR-003-search-architecture.md`
+- `supabase/functions/search/types.ts`
+- `supabase/functions/search/filter.ts`
+
+### Files Modified
+
+- `supabase/functions/search/index.ts` (전체 재작성)
+- `supabase/functions/search/deno.json` (의존성 추가)
+
+### Next Steps (Phase 2)
+
+- [ ] Frontend: Infinite scroll UI 구현
+- [ ] Frontend: `IntersectionObserver` 설정
+- [ ] Frontend: 로딩 상태 관리
+- [ ] Frontend: Pagination 컴포넌트 제거
+- [ ] Frontend: Edge Function 호출 로직
+
+---
+
 ## 2026-01-17 (Afternoon)
 
 ### UI/UX Improvements - Login Flow Refinement
