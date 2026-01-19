@@ -4,6 +4,101 @@
 
 ---
 
+## 2026-01-18/19 (Late Night)
+
+### Search API Refactoring & Security Improvements
+
+#### POST → GET Method Conversion
+
+- **변경사항**: 검색 API를 POST에서 GET으로 변경
+- **이유**:
+  - RESTful 원칙 준수 (검색은 데이터 조회 → GET)
+  - 브라우저/CDN 캐싱 가능
+  - URL 공유 및 북마크 가능
+  - 브라우저 히스토리 정상 작동
+- **주요 구현**:
+  - Request body 파싱 → URL query parameters 파싱
+  - `SearchRequest` 타입 제거 (더 이상 사용 안 함)
+  - Before: `const requestBody = await req.json()`
+  - After:
+    `const url = new URL(req.url); const query = url.searchParams.get("query")`
+- **API 호출 예시**:
+  ```
+  GET /functions/v1/search?query=useState&filter=stars>100&cursor=2&limit=30
+  ```
+
+#### CORS Security Enhancement
+
+- **변경사항**: CORS `Access-Control-Allow-Origin`을 `*`에서 환경 변수 기반
+  검증으로 변경
+- **문제점**:
+  - `*` 사용 시 CSRF 공격 위험
+  - 악의적인 사이트에서 사용자 GitHub 토큰으로 API 호출 가능
+  - Rate limit 소진 위험
+- **해결 방법**:
+  - `ALLOWED_ORIGINS` 환경 변수로 허용된 도메인만 설정
+  - Origin 헤더 검증 후 허용된 경우에만 응답
+  - `Access-Control-Allow-Credentials: true` 추가
+- **구현**:
+  ```typescript
+  const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",");
+  const origin = req.headers.get("Origin") || "";
+  const isAllowedOrigin = allowedOrigins.includes(origin);
+
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": isAllowedOrigin ? origin : "null",
+    "Access-Control-Allow-Credentials": "true",
+  };
+  ```
+
+#### Deno Configuration Restructuring
+
+- **변경사항**: `deno.json`을 함수별 설정에서 공유 설정으로 이동
+- **구조 변경**:
+  - ❌ 삭제: `supabase/functions/search/deno.json`
+  - ✅ 생성: `supabase/functions/deno.json` (모든 Edge Functions 공유)
+- **VS Code 설정 추가**:
+  - `.vscode/settings.json`에
+    `"deno.importMap": "./supabase/functions/deno.json"` 추가
+  - 모든 Edge Functions에서 자동으로 import map 인식
+- **장점**:
+  - 중복 설정 제거
+  - 새 함수 추가 시 별도 `deno.json` 불필요
+  - VS Code IntelliSense 개선
+  - 의존성 관리 일원화
+
+#### Documentation Updates
+
+- **README.md**: 환경 변수 문서화
+  - SvelteKit 환경 변수 (`PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`)
+  - Supabase Edge Functions 환경 변수 (`ALLOWED_ORIGINS`)
+  - 개발/배포 설정 방법 (Vercel, GitHub Actions)
+  - 플랫폼별 섹션 구조 (SvelteKit/Supabase)
+- **ADR-003**: API 스펙 제거 (구현 세부사항은 ADR에 불필요)
+
+#### Minor Improvements
+
+- **Filter evaluator**: 날짜 필드를 타임스탬프로 변환 (`getTime()`)
+  - Filtrex가 Date 객체 비교를 지원하지 않음
+  - 숫자 비교로 변환하여 필터링 가능하게 함
+- **CORS headers**: 불필요한 헤더 유지 결정
+  - `x-client-info`, `apikey`는 Supabase SDK가 자동으로 추가하는 헤더
+  - Supabase 공식 권장사항에 따라 유지
+
+### Files Modified
+
+- `supabase/functions/search/index.ts` (POST → GET 변경, CORS 개선)
+- `supabase/functions/deno.json` (신규, 공유 설정)
+- `.vscode/settings.json` (deno.importMap 추가)
+- `README.md` (환경 변수 문서화)
+- `docs/adr/ADR-003-search-architecture.md` (API 스펙 제거)
+
+### Commits
+
+- `feature: temporary add supabase edge function without redis` (8785de0)
+
+---
+
 ## 2026-01-17 (Evening)
 
 ### Search Edge Function Implementation
