@@ -2,7 +2,9 @@
 
 ## Overview
 
-The GitHub Code Search API allows you to search for code across GitHub repositories. This endpoint returns up to 100 results per page and supports text match metadata for file content and file path fields.
+The GitHub Code Search API allows you to search for code across GitHub
+repositories. This endpoint returns up to 100 results per page and supports text
+match metadata for file content and file path fields.
 
 ## Endpoint
 
@@ -23,20 +25,20 @@ GET /search/code
 
 ### Headers
 
-| Name | Type | Description |
-|------|------|-------------|
-| `accept` | string | Setting to `application/vnd.github+json` is recommended |
-| `X-GitHub-Api-Version` | string | API version (e.g., `2022-11-28`) |
+| Name                   | Type   | Description                                             |
+| ---------------------- | ------ | ------------------------------------------------------- |
+| `accept`               | string | Setting to `application/vnd.github+json` is recommended |
+| `X-GitHub-Api-Version` | string | API version (e.g., `2022-11-28`)                        |
 
 ### Query Parameters
 
-| Name | Type | Required | Description | Default |
-|------|------|----------|-------------|---------|
-| `q` | string | ✅ Yes | Search query containing keywords and qualifiers | - |
-| `sort` | string | No | Sort results by recency of indexing. **Note: This field is closing down.** | best match |
-| `order` | string | No | Sort order: `desc` or `asc`. **Note: This field is closing down.** | `desc` |
-| `per_page` | integer | No | Results per page (max 100) | 30 |
-| `page` | integer | No | Page number for pagination | 1 |
+| Name       | Type    | Required | Description                                                                | Default    |
+| ---------- | ------- | -------- | -------------------------------------------------------------------------- | ---------- |
+| `q`        | string  | ✅ Yes   | Search query containing keywords and qualifiers                            | -          |
+| `sort`     | string  | No       | Sort results by recency of indexing. **Note: This field is closing down.** | best match |
+| `order`    | string  | No       | Sort order: `desc` or `asc`. **Note: This field is closing down.**         | `desc`     |
+| `per_page` | integer | No       | Results per page (max 100)                                                 | 30         |
+| `page`     | integer | No       | Page number for pagination                                                 | 1          |
 
 ## Query Syntax
 
@@ -49,6 +51,7 @@ q=addClass+in:file+language:js+repo:jquery/jquery
 ```
 
 This searches for:
+
 - Keyword: `addClass`
 - Location: `in:file` (within file contents)
 - Language: `language:js` (JavaScript files)
@@ -70,7 +73,8 @@ This searches for:
 
 Due to the complexity of searching code, the following restrictions apply:
 
-1. **Default Branch Only**: Only the default branch (usually `master` or `main`) is searched
+1. **Default Branch Only**: Only the default branch (usually `master` or `main`)
+   is searched
 2. **File Size Limit**: Only files smaller than 384 KB are searchable
 3. **Minimum Search Term**: At least one search term is required
    - ❌ Invalid: `language:go`
@@ -80,13 +84,13 @@ Due to the complexity of searching code, the following restrictions apply:
 
 ### HTTP Status Codes
 
-| Status Code | Description |
-|-------------|-------------|
-| 200 | OK - Successful request |
-| 304 | Not modified |
-| 403 | Forbidden |
-| 422 | Validation failed, or the endpoint has been spammed |
-| 503 | Service unavailable |
+| Status Code | Description                                         |
+| ----------- | --------------------------------------------------- |
+| 200         | OK - Successful request                             |
+| 304         | Not modified                                        |
+| 403         | Forbidden                                           |
+| 422         | Validation failed, or the endpoint has been spammed |
+| 503         | Service unavailable                                 |
 
 ### Response Body Structure
 
@@ -133,38 +137,44 @@ Due to the complexity of searching code, the following restrictions apply:
 
 #### Top-Level Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `total_count` | integer | Total number of matching results |
+**Access path**: `data`
+
+| Field                | Type    | Description                        |
+| -------------------- | ------- | ---------------------------------- |
+| `total_count`        | integer | Total number of matching results   |
 | `incomplete_results` | boolean | Whether the results are incomplete |
-| `items` | array | Array of search result items |
+| `items`              | array   | Array of search result items       |
 
 #### Item Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | File name |
-| `path` | string | Full path to the file in the repository |
-| `sha` | string | Git SHA hash of the file |
-| `url` | string | API URL to fetch file contents |
-| `git_url` | string | Git API URL for the blob |
-| `html_url` | string | Web URL to view the file on GitHub |
-| `repository` | object | Repository information (see below) |
-| `score` | number | Search relevance score |
+**Access path**: `data.items[i]`
+
+| Field        | Type   | Description                             |
+| ------------ | ------ | --------------------------------------- |
+| `name`       | string | File name                               |
+| `path`       | string | Full path to the file in the repository |
+| `sha`        | string | Git SHA hash of the file                |
+| `url`        | string | API URL to fetch file contents          |
+| `git_url`    | string | Git API URL for the blob                |
+| `html_url`   | string | Web URL to view the file on GitHub      |
+| `repository` | object | Repository information (see below)      |
+| `score`      | number | Search relevance score                  |
 
 #### Repository Object
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | integer | Repository ID |
-| `node_id` | string | GraphQL node ID |
-| `name` | string | Repository name |
-| `full_name` | string | Full repository name (owner/repo) |
-| `owner` | object | Owner information |
-| `private` | boolean | Whether the repository is private |
-| `html_url` | string | Repository web URL |
-| `description` | string | Repository description |
-| `fork` | boolean | Whether the repository is a fork |
+**Access path**: `data.items[i].repository`
+
+| Field         | Type    | Description                       |
+| ------------- | ------- | --------------------------------- |
+| `id`          | integer | Repository ID                     |
+| `node_id`     | string  | GraphQL node ID                   |
+| `name`        | string  | Repository name                   |
+| `full_name`   | string  | Full repository name (owner/repo) |
+| `owner`       | object  | Owner information                 |
+| `private`     | boolean | Whether the repository is private |
+| `html_url`    | string  | Repository web URL                |
+| `description` | string  | Repository description            |
+| `fork`        | boolean | Whether the repository is a fork  |
 
 ## Usage Example (Octokit.js)
 
@@ -172,16 +182,16 @@ Due to the complexity of searching code, the following restrictions apply:
 // Octokit.js
 // https://github.com/octokit/core.js#readme
 const octokit = new Octokit({
-  auth: 'YOUR_PERSONAL_ACCESS_TOKEN' // Optional for public repos
+  auth: "YOUR_PERSONAL_ACCESS_TOKEN", // Optional for public repos
 });
 
-const response = await octokit.request('GET /search/code', {
-  q: 'addClass in:file language:js repo:jquery/jquery',
+const response = await octokit.request("GET /search/code", {
+  q: "addClass in:file language:js repo:jquery/jquery",
   per_page: 30,
   page: 1,
   headers: {
-    'X-GitHub-Api-Version': '2022-11-28'
-  }
+    "X-GitHub-Api-Version": "2022-11-28",
+  },
 });
 
 console.log(`Found ${response.data.total_count} results`);
@@ -190,11 +200,16 @@ console.log(response.data.items);
 
 ## Best Practices
 
-1. **Use Specific Queries**: Narrow down your search with qualifiers to get more relevant results
-2. **Handle Rate Limits**: Implement proper rate limit handling (10 requests/minute when authenticated)
-3. **Pagination**: Use `per_page` and `page` parameters to navigate through large result sets
-4. **Authentication**: Use a personal access token to increase rate limits and access private repositories
-5. **Error Handling**: Handle 422 (validation errors) and 503 (service unavailable) responses gracefully
+1. **Use Specific Queries**: Narrow down your search with qualifiers to get more
+   relevant results
+2. **Handle Rate Limits**: Implement proper rate limit handling (10
+   requests/minute when authenticated)
+3. **Pagination**: Use `per_page` and `page` parameters to navigate through
+   large result sets
+4. **Authentication**: Use a personal access token to increase rate limits and
+   access private repositories
+5. **Error Handling**: Handle 422 (validation errors) and 503 (service
+   unavailable) responses gracefully
 
 ## Limitations
 
@@ -212,4 +227,4 @@ console.log(response.data.items);
 
 ---
 
-*Last Updated: 2026-01-09*
+_Last Updated: 2026-01-09_

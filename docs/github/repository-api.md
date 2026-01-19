@@ -2,7 +2,9 @@
 
 ## Overview
 
-The GitHub Repository API allows you to retrieve detailed information about a specific repository. This endpoint provides comprehensive metadata including repository statistics, settings, owner information, and fork relationships.
+The GitHub Repository API allows you to retrieve detailed information about a
+specific repository. This endpoint provides comprehensive metadata including
+repository statistics, settings, owner information, and fork relationships.
 
 ## Endpoint
 
@@ -17,173 +19,196 @@ GET /repos/{owner}/{repo}
   - GitHub App user access tokens
   - GitHub App installation access tokens
   - Fine-grained personal access tokens
-- **Required Permissions**: 
+- **Required Permissions**:
   - "Metadata" repository permissions (read)
   - Additional permissions required for certain fields:
-    - `security_and_analysis`: Admin permissions or organization owner/security manager role
+    - `security_and_analysis`: Admin permissions or organization owner/security
+      manager role
     - Merge-related settings: `contents:read` and `contents:write` permissions
 
 ## Parameters
 
 ### Headers
 
-| Name | Type | Description |
-|------|------|-------------|
-| `accept` | string | Setting to `application/vnd.github+json` is recommended |
-| `X-GitHub-Api-Version` | string | API version (e.g., `2022-11-28`) |
+| Name                   | Type   | Description                                             |
+| ---------------------- | ------ | ------------------------------------------------------- |
+| `accept`               | string | Setting to `application/vnd.github+json` is recommended |
+| `X-GitHub-Api-Version` | string | API version (e.g., `2022-11-28`)                        |
 
 ### Path Parameters
 
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `owner` | string | ✅ Yes | The account owner of the repository (not case sensitive) |
-| `repo` | string | ✅ Yes | The repository name without `.git` extension (not case sensitive) |
+| Name    | Type   | Required | Description                                                       |
+| ------- | ------ | -------- | ----------------------------------------------------------------- |
+| `owner` | string | ✅ Yes   | The account owner of the repository (not case sensitive)          |
+| `repo`  | string | ✅ Yes   | The repository name without `.git` extension (not case sensitive) |
 
 ## Response Format
 
 ### HTTP Status Codes
 
-| Status Code | Description |
-|-------------|-------------|
-| 200 | OK - Successful request |
-| 301 | Moved permanently |
-| 403 | Forbidden |
-| 404 | Resource not found |
+| Status Code | Description             |
+| ----------- | ----------------------- |
+| 200         | OK - Successful request |
+| 301         | Moved permanently       |
+| 403         | Forbidden               |
+| 404         | Resource not found      |
 
 ### Response Body Structure
 
-The response contains extensive repository metadata organized into several categories:
+The response contains extensive repository metadata organized into several
+categories:
 
 #### Basic Information
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | integer | Repository ID |
-| `node_id` | string | GraphQL node ID |
-| `name` | string | Repository name |
-| `full_name` | string | Full repository name (owner/repo) |
-| `description` | string | Repository description |
-| `private` | boolean | Whether the repository is private |
-| `fork` | boolean | Whether the repository is a fork |
-| `url` | string | API URL for the repository |
-| `html_url` | string | Web URL for the repository |
-| `homepage` | string | Repository homepage URL |
+**Access path**: `data`
+
+| Field         | Type    | Description                       |
+| ------------- | ------- | --------------------------------- |
+| `id`          | integer | Repository ID                     |
+| `node_id`     | string  | GraphQL node ID                   |
+| `name`        | string  | Repository name                   |
+| `full_name`   | string  | Full repository name (owner/repo) |
+| `description` | string  | Repository description            |
+| `private`     | boolean | Whether the repository is private |
+| `fork`        | boolean | Whether the repository is a fork  |
+| `url`         | string  | API URL for the repository        |
+| `html_url`    | string  | Web URL for the repository        |
+| `homepage`    | string  | Repository homepage URL           |
 
 #### Owner Information
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `owner` | object | Repository owner details |
-| `owner.login` | string | Owner username |
-| `owner.id` | integer | Owner user ID |
-| `owner.avatar_url` | string | Owner avatar URL |
-| `owner.type` | string | Owner type: "User" or "Organization" |
-| `owner.site_admin` | boolean | Whether owner is a site admin |
+**Access path**: `data.owner`
+
+| Field        | Type    | Description                          |
+| ------------ | ------- | ------------------------------------ |
+| `login`      | string  | Owner username                       |
+| `id`         | integer | Owner user ID                        |
+| `avatar_url` | string  | Owner avatar URL                     |
+| `type`       | string  | Owner type: "User" or "Organization" |
+| `site_admin` | boolean | Whether owner is a site admin        |
 
 #### Statistics
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `stargazers_count` | integer | Number of stars |
-| `watchers_count` | integer | Number of watchers |
-| `watchers` | integer | Number of watchers (duplicate) |
-| `forks_count` | integer | Number of forks |
-| `forks` | integer | Number of forks (duplicate) |
-| `open_issues_count` | integer | Number of open issues |
-| `open_issues` | integer | Number of open issues (duplicate) |
-| `size` | integer | Repository size in KB |
-| `subscribers_count` | integer | Number of subscribers |
-| `network_count` | integer | Number of repositories in the network |
+**Access path**: `data`
+
+| Field               | Type    | Description                           |
+| ------------------- | ------- | ------------------------------------- |
+| `stargazers_count`  | integer | Number of stars                       |
+| `watchers_count`    | integer | Number of watchers                    |
+| `watchers`          | integer | Number of watchers (duplicate)        |
+| `forks_count`       | integer | Number of forks                       |
+| `forks`             | integer | Number of forks (duplicate)           |
+| `open_issues_count` | integer | Number of open issues                 |
+| `open_issues`       | integer | Number of open issues (duplicate)     |
+| `size`              | integer | Repository size in KB                 |
+| `subscribers_count` | integer | Number of subscribers                 |
+| `network_count`     | integer | Number of repositories in the network |
 
 #### Repository Settings
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `default_branch` | string | Default branch name (e.g., "master", "main") |
-| `visibility` | string | Repository visibility: "public", "private", or "internal" |
-| `archived` | boolean | Whether the repository is archived |
-| `disabled` | boolean | Whether the repository is disabled |
-| `is_template` | boolean | Whether the repository is a template |
-| `has_issues` | boolean | Whether issues are enabled |
-| `has_projects` | boolean | Whether projects are enabled |
-| `has_wiki` | boolean | Whether wiki is enabled |
-| `has_pages` | boolean | Whether GitHub Pages is enabled |
-| `has_downloads` | boolean | Whether downloads are enabled |
-| `has_discussions` | boolean | Whether discussions are enabled |
+**Access path**: `data`
+
+| Field             | Type    | Description                                               |
+| ----------------- | ------- | --------------------------------------------------------- |
+| `default_branch`  | string  | Default branch name (e.g., "master", "main")              |
+| `visibility`      | string  | Repository visibility: "public", "private", or "internal" |
+| `archived`        | boolean | Whether the repository is archived                        |
+| `disabled`        | boolean | Whether the repository is disabled                        |
+| `is_template`     | boolean | Whether the repository is a template                      |
+| `has_issues`      | boolean | Whether issues are enabled                                |
+| `has_projects`    | boolean | Whether projects are enabled                              |
+| `has_wiki`        | boolean | Whether wiki is enabled                                   |
+| `has_pages`       | boolean | Whether GitHub Pages is enabled                           |
+| `has_downloads`   | boolean | Whether downloads are enabled                             |
+| `has_discussions` | boolean | Whether discussions are enabled                           |
 
 #### Merge Settings
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `allow_rebase_merge` | boolean | Whether rebase merging is allowed |
-| `allow_squash_merge` | boolean | Whether squash merging is allowed |
-| `allow_merge_commit` | boolean | Whether merge commits are allowed |
-| `allow_auto_merge` | boolean | Whether auto-merge is allowed |
+**Access path**: `data`
+
+| Field                    | Type    | Description                           |
+| ------------------------ | ------- | ------------------------------------- |
+| `allow_rebase_merge`     | boolean | Whether rebase merging is allowed     |
+| `allow_squash_merge`     | boolean | Whether squash merging is allowed     |
+| `allow_merge_commit`     | boolean | Whether merge commits are allowed     |
+| `allow_auto_merge`       | boolean | Whether auto-merge is allowed         |
 | `delete_branch_on_merge` | boolean | Whether branches are deleted on merge |
-| `allow_forking` | boolean | Whether forking is allowed |
+| `allow_forking`          | boolean | Whether forking is allowed            |
 
 #### Timestamps
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `created_at` | string | ISO 8601 timestamp of creation |
+**Access path**: `data`
+
+| Field        | Type   | Description                       |
+| ------------ | ------ | --------------------------------- |
+| `created_at` | string | ISO 8601 timestamp of creation    |
 | `updated_at` | string | ISO 8601 timestamp of last update |
-| `pushed_at` | string | ISO 8601 timestamp of last push |
+| `pushed_at`  | string | ISO 8601 timestamp of last push   |
 
 #### Additional Metadata
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `topics` | array | Array of topic strings |
-| `language` | string | Primary programming language |
-| `license` | object | License information (see below) |
-| `permissions` | object | User permissions (admin, push, pull) |
-| `organization` | object | Organization details (if applicable) |
-| `temp_clone_token` | string | Temporary clone token |
+**Access path**: `data`
+
+| Field              | Type   | Description                          |
+| ------------------ | ------ | ------------------------------------ |
+| `topics`           | array  | Array of topic strings               |
+| `language`         | string | Primary programming language         |
+| `license`          | object | License information (see below)      |
+| `permissions`      | object | User permissions (admin, push, pull) |
+| `organization`     | object | Organization details (if applicable) |
+| `temp_clone_token` | string | Temporary clone token                |
 
 #### License Object
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `key` | string | License key (e.g., "mit") |
-| `name` | string | License name (e.g., "MIT License") |
-| `spdx_id` | string | SPDX identifier |
-| `url` | string | API URL for license details |
-| `node_id` | string | GraphQL node ID |
-| `html_url` | string | Web URL for license details |
+**Access path**: `data.license`
+
+| Field      | Type   | Description                        |
+| ---------- | ------ | ---------------------------------- |
+| `key`      | string | License key (e.g., "mit")          |
+| `name`     | string | License name (e.g., "MIT License") |
+| `spdx_id`  | string | SPDX identifier                    |
+| `url`      | string | API URL for license details        |
+| `node_id`  | string | GraphQL node ID                    |
+| `html_url` | string | Web URL for license details        |
 
 #### Fork Relationships
 
-> **Note**: The `parent` and `source` objects are only present when the repository is a fork.
+> **Note**: The `parent` and `source` objects are only present when the
+> repository is a fork.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `parent` | object | Direct parent repository (if forked) |
+| Field    | Type   | Description                                    |
+| -------- | ------ | ---------------------------------------------- |
+| `parent` | object | Direct parent repository (if forked)           |
 | `source` | object | Ultimate source repository in the fork network |
 
-Both `parent` and `source` objects contain the same structure as the main repository object.
+Both `parent` and `source` objects contain the same structure as the main
+repository object.
 
 #### Template Repository
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field                 | Type   | Description                                            |
+| --------------------- | ------ | ------------------------------------------------------ |
 | `template_repository` | object | Template repository details (if created from template) |
 
-The `template_repository` object contains the same structure as the main repository object.
+The `template_repository` object contains the same structure as the main
+repository object.
 
 #### Security and Analysis
 
-> **Note**: Requires admin permissions or organization owner/security manager role.
+> **Note**: Requires admin permissions or organization owner/security manager
+> role.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `security_and_analysis` | object | Security settings |
-| `security_and_analysis.advanced_security` | object | Advanced security status |
-| `security_and_analysis.secret_scanning` | object | Secret scanning status |
-| `security_and_analysis.secret_scanning_push_protection` | object | Push protection status |
-| `security_and_analysis.secret_scanning_non_provider_patterns` | object | Non-provider pattern scanning status |
+**Access path**: `data.security_and_analysis`
 
-Each security feature object contains a `status` field with values: "enabled" or "disabled".
+| Field                                   | Type   | Description                          |
+| --------------------------------------- | ------ | ------------------------------------ |
+| `advanced_security`                     | object | Advanced security status             |
+| `secret_scanning`                       | object | Secret scanning status               |
+| `secret_scanning_push_protection`       | object | Push protection status               |
+| `secret_scanning_non_provider_patterns` | object | Non-provider pattern scanning status |
+
+Each security feature object contains a `status` field with values: "enabled" or
+"disabled".
 
 #### API Resource URLs
 
@@ -228,12 +253,14 @@ The response includes numerous URL templates for accessing related resources:
 
 #### Clone URLs
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `clone_url` | string | HTTPS clone URL |
-| `git_url` | string | Git protocol URL |
-| `ssh_url` | string | SSH clone URL |
-| `svn_url` | string | SVN URL |
+**Access path**: `data`
+
+| Field        | Type   | Description                |
+| ------------ | ------ | -------------------------- |
+| `clone_url`  | string | HTTPS clone URL            |
+| `git_url`    | string | Git protocol URL           |
+| `ssh_url`    | string | SSH clone URL              |
+| `svn_url`    | string | SVN URL                    |
 | `mirror_url` | string | Mirror URL (if applicable) |
 
 ## Usage Example (Octokit.js)
@@ -242,15 +269,15 @@ The response includes numerous URL templates for accessing related resources:
 // Octokit.js
 // https://github.com/octokit/core.js#readme
 const octokit = new Octokit({
-  auth: 'YOUR-TOKEN' // Optional for public repos
+  auth: "YOUR-TOKEN", // Optional for public repos
 });
 
-const response = await octokit.request('GET /repos/{owner}/{repo}', {
-  owner: 'octocat',
-  repo: 'Hello-World',
+const response = await octokit.request("GET /repos/{owner}/{repo}", {
+  owner: "octocat",
+  repo: "Hello-World",
   headers: {
-    'X-GitHub-Api-Version': '2022-11-28'
-  }
+    "X-GitHub-Api-Version": "2022-11-28",
+  },
 });
 
 console.log(`Repository: ${response.data.full_name}`);
@@ -309,12 +336,13 @@ if (response.data.license) {
 
 ### 1. Display Repository Statistics
 
-Fetch repository metadata to display stars, forks, and other statistics in your application.
+Fetch repository metadata to display stars, forks, and other statistics in your
+application.
 
 ```javascript
-const { data } = await octokit.request('GET /repos/{owner}/{repo}', {
-  owner: 'jquery',
-  repo: 'jquery'
+const { data } = await octokit.request("GET /repos/{owner}/{repo}", {
+  owner: "jquery",
+  repo: "jquery",
 });
 
 // Use data.stargazers_count, data.forks_count, etc.
@@ -325,9 +353,9 @@ const { data } = await octokit.request('GET /repos/{owner}/{repo}', {
 Determine if a repository has certain features enabled.
 
 ```javascript
-const { data } = await octokit.request('GET /repos/{owner}/{repo}', {
-  owner: 'owner',
-  repo: 'repo'
+const { data } = await octokit.request("GET /repos/{owner}/{repo}", {
+  owner: "owner",
+  repo: "repo",
 });
 
 if (data.has_issues) {
@@ -344,9 +372,9 @@ if (data.is_template) {
 Trace the fork network to find the original source repository.
 
 ```javascript
-const { data } = await octokit.request('GET /repos/{owner}/{repo}', {
-  owner: 'forked-owner',
-  repo: 'forked-repo'
+const { data } = await octokit.request("GET /repos/{owner}/{repo}", {
+  owner: "forked-owner",
+  repo: "forked-repo",
 });
 
 if (data.fork) {
@@ -360,30 +388,37 @@ if (data.fork) {
 Use the language field to filter repositories by their primary language.
 
 ```javascript
-const { data } = await octokit.request('GET /repos/{owner}/{repo}', {
-  owner: 'owner',
-  repo: 'repo'
+const { data } = await octokit.request("GET /repos/{owner}/{repo}", {
+  owner: "owner",
+  repo: "repo",
 });
 
-if (data.language === 'JavaScript') {
+if (data.language === "JavaScript") {
   // This is primarily a JavaScript repository
 }
 ```
 
 ## Best Practices
 
-1. **Cache Repository Data**: Repository metadata doesn't change frequently, so implement caching to reduce API calls
-2. **Handle 404 Errors**: Always handle cases where repositories might not exist or have been deleted
-3. **Check Permissions**: Be aware that some fields require specific permissions to view
-4. **Use Conditional Requests**: Use ETags and `If-None-Match` headers to avoid unnecessary data transfer
-5. **Respect Rate Limits**: Implement proper rate limit handling for your application
-6. **Parse Fork Relationships**: Check the `fork` boolean before accessing `parent` or `source` objects
+1. **Cache Repository Data**: Repository metadata doesn't change frequently, so
+   implement caching to reduce API calls
+2. **Handle 404 Errors**: Always handle cases where repositories might not exist
+   or have been deleted
+3. **Check Permissions**: Be aware that some fields require specific permissions
+   to view
+4. **Use Conditional Requests**: Use ETags and `If-None-Match` headers to avoid
+   unnecessary data transfer
+5. **Respect Rate Limits**: Implement proper rate limit handling for your
+   application
+6. **Parse Fork Relationships**: Check the `fork` boolean before accessing
+   `parent` or `source` objects
 
 ## Common Patterns
 
 ### Filtering Repositories for Search Results
 
-When displaying code search results, you can fetch repository details to enable additional filtering:
+When displaying code search results, you can fetch repository details to enable
+additional filtering:
 
 ```javascript
 // After getting code search results
@@ -391,29 +426,31 @@ const repositories = new Map();
 
 for (const item of searchResults.items) {
   const repoFullName = item.repository.full_name;
-  
+
   if (!repositories.has(repoFullName)) {
-    const [owner, repo] = repoFullName.split('/');
-    const { data } = await octokit.request('GET /repos/{owner}/{repo}', {
+    const [owner, repo] = repoFullName.split("/");
+    const { data } = await octokit.request("GET /repos/{owner}/{repo}", {
       owner,
-      repo
+      repo,
     });
     repositories.set(repoFullName, data);
   }
 }
 
 // Now filter by stars, language, etc.
-const filtered = Array.from(repositories.values()).filter(repo => 
-  repo.stargazers_count > 100 && repo.language === 'JavaScript'
+const filtered = Array.from(repositories.values()).filter((repo) =>
+  repo.stargazers_count > 100 && repo.language === "JavaScript"
 );
 ```
 
 ## Limitations
 
-- **Rate Limits**: Subject to GitHub API rate limits (5,000 requests/hour for authenticated requests)
+- **Rate Limits**: Subject to GitHub API rate limits (5,000 requests/hour for
+  authenticated requests)
 - **Permission-Based Fields**: Some fields require specific permissions to view
 - **Public vs Private**: Authentication required for private repositories
-- **Fork Depth**: The API only provides direct `parent` and ultimate `source`, not the full fork chain
+- **Fork Depth**: The API only provides direct `parent` and ultimate `source`,
+  not the full fork chain
 
 ## Related Documentation
 
@@ -423,4 +460,4 @@ const filtered = Array.from(repositories.values()).filter(repo =>
 
 ---
 
-*Last Updated: 2026-01-09*
+_Last Updated: 2026-01-09_
