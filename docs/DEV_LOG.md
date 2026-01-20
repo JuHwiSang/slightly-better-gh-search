@@ -4,6 +4,137 @@
 
 ---
 
+## 2026-01-21 (Early Morning)
+
+### Error Handling Refactoring with ApiError Class
+
+#### Overview
+
+- **변경사항**: Edge Function의 에러 처리 로직을 `ApiError` 클래스 기반으로
+  리팩토링
+- **목적**: 반복적인 Response 생성 코드 제거 및 유지보수성 향상
+- **주요 개선**:
+  - 5개의 중복된 에러 Response 생성 코드 제거
+  - Helper 함수들이 `null` 반환 대신 에러를 throw하도록 변경
+  - 중앙 집중식 에러 처리 로직
+
+#### Implementation Details
+
+**신규 모듈** (`supabase/functions/search/errors.ts`):
+
+```typescript
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public details?: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+```
+
+**Before (반복적인 패턴)**:
+
+```typescript
+if (!query || query.trim() === "") {
+  return new Response(
+    JSON.stringify({ error: "Query parameter is required" }),
+    {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
+}
+```
+
+**After (간결한 throw)**:
+
+```typescript
+if (!query || query.trim() === "") {
+  throw new ApiError(400, "Query parameter is required");
+}
+```
+
+#### Changes by File
+
+**`auth.ts`**:
+
+- `getGitHubToken()` 반환 타입 변경: `Promise<string | null>` →
+  `Promise<string>`
+- `null` 반환 대신 `ApiError(401, "GitHub OAuth token not found...")` throw
+- JSDoc 업데이트: `@throws {ApiError}` 추가
+
+**`index.ts`**:
+
+1. **에러 문서화** (라인 56-64):
+   ```typescript
+   /**
+    * Search Edge Function
+    *
+    * Possible API errors:
+    * - 400: Missing/empty query, invalid cursor format, filter evaluation error
+    * - 401: Missing Authorization header, GitHub token not found
+    * - 500: Unexpected internal errors
+    */
+   ```
+
+2. **에러 처리 간소화** (5개 케이스):
+   - Missing query (라인 74-76)
+   - Missing auth header (라인 86-88)
+   - Missing GitHub token (라인 97 - 제거됨, `getGitHubToken()`이 throw)
+   - Invalid cursor (라인 115-120)
+   - Filter evaluation error (라인 189-194)
+
+3. **중앙 집중식 catch 블록** (라인 255-281):
+   ```typescript
+   catch (error: unknown) {
+     // Handle ApiError with specific status codes
+     if (error instanceof ApiError) {
+       return new Response(
+         JSON.stringify({
+           error: error.message,
+           ...(error.details && { details: error.details }),
+         }),
+         { status: error.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+       );
+     }
+     // Handle unexpected errors (500)
+     // ...
+   }
+   ```
+
+#### Benefits
+
+- **코드 라인 수 감소**: ~40줄 제거
+- **일관성 보장**: 모든 에러 응답이 동일한 형식 (`corsHeaders` + `Content-Type`)
+- **가독성 향상**: 비즈니스 로직과 HTTP 응답 생성 코드 분리
+- **유지보수 용이**: 에러 응답 형식 변경 시 catch 블록만 수정
+- **타입 안전성**: `| null` 제거로 null 체크 불필요
+
+#### Error Response Format
+
+모든 에러는 동일한 JSON 형식으로 반환:
+
+```json
+{
+  "error": "Error message",
+  "details": "Optional additional details"
+}
+```
+
+#### Files Created
+
+- `supabase/functions/search/errors.ts`
+
+#### Files Modified
+
+- `supabase/functions/search/auth.ts`
+- `supabase/functions/search/index.ts`
+
+---
+
 ## 2026-01-20 (Evening)
 
 ### Enhanced GitHub Code Search API Integration

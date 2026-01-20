@@ -4,6 +4,7 @@ import { createRedisClient } from "./cache.ts";
 import { generateCorsHeaders, parseCorsConfig } from "./cors.ts";
 import { createSupabaseClient, getGitHubToken } from "./auth.ts";
 import { fetchCodeSearch, fetchRepositories } from "./github.ts";
+import { ApiError } from "./errors.ts";
 
 const RESULTS_PER_PAGE = 100; // GitHub max
 const MAX_PAGES_TO_FETCH = 3; // Limit to avoid excessive API calls
@@ -53,6 +54,14 @@ function parseCursor(cursor: string | null): {
   return null; // Invalid format
 }
 
+/**
+ * Search Edge Function
+ *
+ * Possible API errors:
+ * - 400: Missing/empty query, invalid cursor format, filter evaluation error
+ * - 401: Missing Authorization header, GitHub token not found
+ * - 500: Unexpected internal errors
+ */
 Deno.serve(async (req) => {
   // Parse CORS configuration
   const corsConfig = parseCorsConfig(req);
@@ -73,42 +82,18 @@ Deno.serve(async (req) => {
 
     // Validate query
     if (!query || query.trim() === "") {
-      return new Response(
-        JSON.stringify({ error: "Query parameter is required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      throw new ApiError(400, "Query parameter is required");
     }
 
     // Get authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      throw new ApiError(401, "Missing authorization header");
     }
 
     // Initialize Supabase client and get GitHub token
     const supabaseClient = createSupabaseClient(authHeader);
     const githubToken = await getGitHubToken(supabaseClient);
-
-    if (!githubToken) {
-      return new Response(
-        JSON.stringify({
-          error: "GitHub OAuth token not found. Please re-authenticate.",
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
 
     // Initialize Redis client (null if not configured)
     const redis = createRedisClient();
@@ -116,15 +101,9 @@ Deno.serve(async (req) => {
     // Parse and validate cursor
     const cursorData = parseCursor(cursor);
     if (cursor && !cursorData) {
-      return new Response(
-        JSON.stringify({
-          error:
-            "Invalid cursor format. Expected 'page:index' where page is 1-10 and index is 0-99.",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+      throw new ApiError(
+        400,
+        "Invalid cursor format. Expected 'page:index' where page is 1-10 and index is 0-99.",
       );
     }
 
@@ -191,14 +170,9 @@ Deno.serve(async (req) => {
             const errorMessage = error instanceof Error
               ? error.message
               : String(error);
-            return new Response(
-              JSON.stringify({
-                error: `Filter evaluation error: ${errorMessage}`,
-              }),
-              {
-                status: 400,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              },
+            throw new ApiError(
+              400,
+              `Filter evaluation error: ${errorMessage}`,
             );
           }
         }
@@ -260,6 +234,22 @@ Deno.serve(async (req) => {
     });
   } catch (error: unknown) {
     console.error("Search function error:", error);
+
+    // Handle ApiError with specific status codes
+    if (error instanceof ApiError) {
+      return new Response(
+        JSON.stringify({
+          error: error.message,
+          ...(error.details && { details: error.details }),
+        }),
+        {
+          status: error.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Handle unexpected errors
     const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({

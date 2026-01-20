@@ -143,6 +143,36 @@ const highlighted = `<mark class="bg-yellow-400/30 text-yellow-200">${term}</mar
 // ❌ Don't use dangerouslySetInnerHTML or unsanitized HTML
 ```
 
+### Edge Function Error Handling
+
+```typescript
+// ✅ Use ApiError class for all error cases
+import { ApiError } from "./errors.ts";
+
+if (!query) {
+  throw new ApiError(400, "Query parameter is required");
+}
+
+// ✅ Centralized error handling in catch block
+catch (error: unknown) {
+  if (error instanceof ApiError) {
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: error.status, headers: corsHeaders }
+    );
+  }
+  // Handle unexpected errors...
+}
+
+// ❌ Don't create Response objects manually for each error
+if (!query) {
+  return new Response(
+    JSON.stringify({ error: "..." }),
+    { status: 400, headers: {...} }
+  );
+}
+```
+
 ---
 
 ## Common Mistakes
@@ -343,6 +373,6 @@ significant changes.
 
 ---
 
-_Last Updated: 2026-01-20_\
+_Last Updated: 2026-01-21_\
 _This file is optimized for AI consumption. Keep it concise and
 pattern-focused._
