@@ -2,12 +2,70 @@
 
 Enhanced GitHub Code Search with custom filtering capabilities.
 
+## Architecture
+
+```
+┌─────────────┐
+│   Browser   │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────────────────────────────┐
+│          SvelteKit (BFF/SSR)            │
+│  • Server-side rendering                │
+│  • Session management                   │
+│  • API proxy                            │
+└──────┬──────────────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────────────┐
+│      Supabase (Backend Platform)        │
+│  ┌───────────────────────────────────┐  │
+│  │  Auth (GitHub OAuth)              │  │
+│  └───────────────────────────────────┘  │
+│  ┌───────────────────────────────────┐  │
+│  │  Edge Functions (Deno)            │  │
+│  │  • GitHub API integration         │  │
+│  │  • Custom filtering               │  │
+│  │  • Redis caching layer            │  │
+│  └───────────────────────────────────┘  │
+└──────┬──────────────────────────────────┘
+       │
+       ├──────────────┬─────────────────┐
+       ▼              ▼                 ▼
+┌─────────────┐ ┌──────────┐  ┌────────────────┐
+│  GitHub API │ │  Upstash │  │  Supabase Auth │
+│             │ │  Redis   │  │                │
+│  • Search   │ │  • Cache │  │  • Sessions    │
+│  • Repos    │ │  • ETag  │  │  • OAuth       │
+└─────────────┘ └──────────┘  └────────────────┘
+```
+
+### Request Flow
+
+1. **Client → SvelteKit**: Browser sends request to SvelteKit server
+2. **SvelteKit → Supabase Auth**: Validates session (SSR)
+3. **SvelteKit → Edge Function**: Proxies API request with auth token
+4. **Edge Function → Redis**: Checks cache (with ETag)
+5. **Edge Function → GitHub API**: Fetches data if cache miss or stale
+6. **Edge Function → Redis**: Updates cache with new data + ETag
+7. **Edge Function → SvelteKit → Client**: Returns filtered results
+
+### Deployment
+
+- **Frontend (SvelteKit)**: Vercel (automatic deployment from `main` branch)
+- **Backend (Edge Functions)**: Supabase (GitHub Actions deployment)
+- **Cache (Redis)**: Upstash (serverless Redis)
+
+---
+
 ## Tech Stack
 
-- **Frontend**: SvelteKit
+- **BFF/SSR**: SvelteKit
 - **Backend**: Supabase Edge Functions (Deno)
+- **Cache**: Upstash Redis
 - **Auth**: Supabase Auth (GitHub OAuth)
-- **Deployment**: Vercel (Frontend) + Supabase (Edge Functions)
+- **Deployment**: Vercel (Frontend) + Supabase (Backend)
 
 ---
 
