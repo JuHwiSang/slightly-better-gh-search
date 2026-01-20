@@ -1,37 +1,17 @@
-import { createClient } from "@supabase/supabase-js";
 import { evaluateFilter } from "./filter.ts";
-import type {
-  GitHubCodeSearchResponse,
-  RepositoryInfo,
-  SearchResponse,
-  SearchResultItem,
-} from "./types.ts";
+import type { SearchResponse, SearchResultItem } from "./types.ts";
+import { createRedisClient } from "./cache.ts";
+import { generateCorsHeaders, parseCorsConfig } from "./cors.ts";
+import { createSupabaseClient, getGitHubToken } from "./auth.ts";
+import { fetchCodeSearch, fetchRepositories } from "./github.ts";
 
-const GITHUB_API_BASE = "https://api.github.com";
 const RESULTS_PER_PAGE = 100; // GitHub max
 const MAX_PAGES_TO_FETCH = 3; // Limit to avoid excessive API calls
 
 Deno.serve(async (req) => {
-  // Get allowed origins from environment
-  const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") || "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-
-  // Get request origin
-  const origin = req.headers.get("Origin") || "";
-
-  // Check if origin is allowed
-  const isAllowedOrigin = allowedOrigins.includes(origin) ||
-    allowedOrigins.includes("*");
-
-  // CORS headers
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": isAllowedOrigin ? origin : "null",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Credentials": "true",
-  };
+  // Parse CORS configuration
+  const corsConfig = parseCorsConfig(req);
+  const corsHeaders = generateCorsHeaders(corsConfig);
 
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -69,35 +49,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      },
-    );
+    // Initialize Supabase client and get GitHub token
+    const supabaseClient = createSupabaseClient(authHeader);
+    const githubToken = await getGitHubToken(supabaseClient);
 
-    // Get user session
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser();
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    // Get GitHub OAuth token from user metadata
-    const githubToken = user.user_metadata?.provider_token;
     if (!githubToken) {
       return new Response(
         JSON.stringify({
@@ -109,6 +64,9 @@ Deno.serve(async (req) => {
         },
       );
     }
+
+    // Initialize Redis client (null if not configured)
+    const redis = createRedisClient();
 
     // Parse cursor to determine starting page
     const startPage = cursor ? parseInt(cursor, 10) : 1;
@@ -125,35 +83,14 @@ Deno.serve(async (req) => {
       currentPage <= startPage + MAX_PAGES_TO_FETCH - 1
     ) {
       // Fetch code search results from GitHub
-      const searchUrl = new URL(`${GITHUB_API_BASE}/search/code`);
-      searchUrl.searchParams.set("q", query);
-      searchUrl.searchParams.set("per_page", RESULTS_PER_PAGE.toString());
-      searchUrl.searchParams.set("page", currentPage.toString());
+      const searchData = await fetchCodeSearch(
+        redis,
+        githubToken,
+        query,
+        currentPage,
+        RESULTS_PER_PAGE,
+      );
 
-      const searchResponse = await fetch(searchUrl.toString(), {
-        headers: {
-          Authorization: `Bearer ${githubToken}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      });
-
-      if (!searchResponse.ok) {
-        const errorText = await searchResponse.text();
-        console.error("GitHub API error:", errorText);
-        return new Response(
-          JSON.stringify({
-            error:
-              `GitHub API error: ${searchResponse.status} ${searchResponse.statusText}`,
-          }),
-          {
-            status: searchResponse.status,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-
-      const searchData: GitHubCodeSearchResponse = await searchResponse.json();
       totalCount = searchData.total_count;
 
       // If no more results, break
@@ -163,33 +100,11 @@ Deno.serve(async (req) => {
       }
 
       // Fetch repository information for each unique repository
-      const repoMap = new Map<string, RepositoryInfo>();
       const uniqueRepos = [
         ...new Set(searchData.items.map((item) => item.repository.full_name)),
       ];
 
-      // Fetch all repository info in parallel
-      const repoPromises = uniqueRepos.map(async (fullName) => {
-        const [owner, repo] = fullName.split("/");
-        const repoUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}`;
-
-        const repoResponse = await fetch(repoUrl, {
-          headers: {
-            Authorization: `Bearer ${githubToken}`,
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-          },
-        });
-
-        if (repoResponse.ok) {
-          const repoData: RepositoryInfo = await repoResponse.json();
-          repoMap.set(fullName, repoData);
-        } else {
-          console.warn(`Failed to fetch repo info for ${fullName}`);
-        }
-      });
-
-      await Promise.all(repoPromises);
+      const repoMap = await fetchRepositories(redis, githubToken, uniqueRepos);
 
       // Apply filter and build result items
       for (const item of searchData.items) {

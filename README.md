@@ -47,11 +47,14 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 
 ### Environment Variables
 
-| Variable            | Description                          | Required      | Example                                             |
-| ------------------- | ------------------------------------ | ------------- | --------------------------------------------------- |
-| `SUPABASE_URL`      | Supabase project URL                 | ✅ Yes (auto) | `https://xxx.supabase.co`                           |
-| `SUPABASE_ANON_KEY` | Supabase anonymous key               | ✅ Yes (auto) | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
-| `ALLOWED_ORIGINS`   | Comma-separated allowed CORS origins | ✅ Yes        | `https://your-app.vercel.app,http://localhost:5173` |
+| Variable                   | Description                          | Required      | Example                                             |
+| -------------------------- | ------------------------------------ | ------------- | --------------------------------------------------- |
+| `SUPABASE_URL`             | Supabase project URL                 | ✅ Yes (auto) | `https://xxx.supabase.co`                           |
+| `SUPABASE_ANON_KEY`        | Supabase anonymous key               | ✅ Yes (auto) | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
+| `ALLOWED_ORIGINS`          | Comma-separated allowed CORS origins | ✅ Yes        | `https://your-app.vercel.app,http://localhost:5173` |
+| `UPSTASH_REDIS_REST_URL`   | Upstash Redis REST API URL           | ✅ Yes        | `https://xxx.upstash.io`                            |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST API token         | ✅ Yes        | `AXXXaaaBBBcccDDD...`                               |
+| `CACHE_TTL_SECONDS`        | Cache TTL in seconds                 | ❌ No         | `86400` (default: 24h)                              |
 
 > **Note**: `SUPABASE_URL` and `SUPABASE_ANON_KEY` are automatically provided by
 > Supabase runtime.
@@ -61,6 +64,8 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 1. Create `supabase/.env` file:
    ```bash
    ALLOWED_ORIGINS=http://localhost:5173
+   UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
+   UPSTASH_REDIS_REST_TOKEN=your-token
    ```
 
 2. Run Supabase locally:
@@ -77,6 +82,8 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 3. Add environment variables in Supabase Dashboard:
    - Project Settings → Edge Functions → Environment Variables
    - Add `ALLOWED_ORIGINS` with production domain
+   - Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
+   - (Optional) Add `CACHE_TTL_SECONDS` to customize cache duration
 4. Push to `main` branch (GitHub Actions will auto-deploy)
 
 ---

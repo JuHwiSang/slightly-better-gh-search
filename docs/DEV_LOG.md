@@ -4,6 +4,221 @@
 
 ---
 
+## 2026-01-20 (Late Night)
+
+### Edge Function Refactoring
+
+#### Overview
+
+- **변경사항**: `index.ts`를 모듈화하여 가독성 개선
+- **목적**: 353줄의 복잡한 핸들러를 ~190줄로 단순화
+- **방법**: 로직을 역할별로 분리
+
+#### Module Structure
+
+**신규 모듈**:
+
+1. **`cors.ts`**: CORS 설정 및 헤더 생성
+   - `parseCorsConfig()`: 환경변수 및 요청에서 CORS 설정 파싱
+   - `generateCorsHeaders()`: CORS 헤더 생성
+2. **`auth.ts`**: 인증 관련 로직
+   - `createSupabaseClient()`: Supabase 클라이언트 초기화
+   - `getGitHubToken()`: GitHub OAuth 토큰 조회
+3. **`github.ts`**: GitHub API 호출 (캐싱 포함)
+   - `fetchCodeSearch()`: Code Search API 호출 + ETag 캐싱
+   - `fetchRepository()`: Repository API 호출 + ETag 캐싱
+   - `fetchRepositories()`: 병렬 레포지토리 조회
+
+**기존 모듈**:
+
+- `cache.ts`: Redis 캐싱 유틸리티
+- `filter.ts`: 필터 표현식 평가
+- `types.ts`: TypeScript 타입 정의
+
+#### Refactoring Benefits
+
+**Before**:
+
+- 353줄의 단일 파일
+- CORS, 인증, GitHub API, 캐싱 로직이 모두 섞여 있음
+- 가독성 낮음, 유지보수 어려움
+
+**After**:
+
+- ~190줄의 간결한 핸들러
+- 역할별로 명확히 분리된 모듈
+- 각 모듈은 단일 책임 원칙 준수
+- 테스트 및 유지보수 용이
+
+#### Code Organization
+
+**Main Handler** (`index.ts`):
+
+```typescript
+// 1. CORS 처리
+const corsConfig = parseCorsConfig(req);
+const corsHeaders = generateCorsHeaders(corsConfig);
+
+// 2. 인증
+const supabaseClient = createSupabaseClient(authHeader);
+const githubToken = await getGitHubToken(supabaseClient);
+
+// 3. GitHub API 호출
+const searchData = await fetchCodeSearch(
+  redis,
+  githubToken,
+  query,
+  page,
+  perPage,
+);
+const repoMap = await fetchRepositories(redis, githubToken, uniqueRepos);
+
+// 4. 필터링 및 응답
+```
+
+#### Files Created
+
+- `supabase/functions/search/cors.ts`
+- `supabase/functions/search/auth.ts`
+- `supabase/functions/search/github.ts`
+
+#### Files Modified
+
+- `supabase/functions/search/index.ts` (전체 재작성, 353줄 → ~190줄)
+
+---
+
+## 2026-01-20
+
+### Upstash Redis Caching Implementation
+
+#### Overview
+
+- **변경사항**: Supabase Edge Function에 Upstash Redis 캐싱 추가
+- **목적**: GitHub API 호출 최적화 및 Rate Limit 절약
+- **주요 기능**:
+  - ETag 기반 조건부 요청 (`If-None-Match`)
+  - Code Search API 및 Repository API 캐싱
+  - Redis 연결 실패 시 자동 fallback
+  - 병렬 캐시 조회 및 저장
+
+#### Cache Strategy
+
+- **캐시 키 구조**:
+  - Code Search: `github:search:query:{query}:page:{page}`
+  - Repository: `github:repo:fullName:{owner/repo}`
+- **TTL**: 24시간 (86400초, `CACHE_TTL_SECONDS`로 조정 가능)
+- **ETag 활용**:
+  1. GitHub API 응답의 `ETag` 헤더를 Redis에 함께 저장
+  2. 다음 요청 시 `If-None-Match: {etag}` 헤더 전송
+  3. `304 Not Modified` 응답 시 캐시된 데이터 재사용
+  4. `200 OK` 응답 시 새 데이터 + 새 ETag로 캐시 갱신
+
+#### Implementation Details
+
+**Cache Module** (`supabase/functions/search/cache.ts`):
+
+- `createRedisClient()`: Upstash Redis 클라이언트 초기화
+  - 환경변수 미설정 시 `null` 반환 (캐싱 비활성화)
+  - 초기화 실패 시 에러 로그 출력 후 `null` 반환
+- `generateCacheKey(prefix, params)`: 캐시 키 생성
+  - 파라미터를 정렬하여 일관된 키 생성
+- `getCachedData<T>(redis, key)`: 캐시 조회
+  - 캐시 히트/미스 로그 출력
+  - 에러 발생 시 `null` 반환 (fallback)
+- `setCachedData<T>(redis, key, data, etag, ttl)`: 캐시 저장
+  - `CachedData<T>` 타입으로 data + etag 함께 저장
+  - TTL 기본값: 환경변수 또는 86400초
+
+**Edge Function** (`supabase/functions/search/index.ts`):
+
+- **Redis 클라이언트 초기화** (라인 121):
+  ```typescript
+  const redis = createRedisClient();
+  ```
+- **Code Search API 캐싱** (라인 137-205):
+  1. 캐시 키 생성 (`query`, `page` 기반)
+  2. 캐시 조회 → ETag 확인
+  3. GitHub API 요청 시 `If-None-Match: {etag}` 헤더 추가
+  4. 응답 처리:
+     - `304 Not Modified` → 캐시된 데이터 사용
+     - `200 OK` → 새 데이터 파싱 + ETag 추출 + 캐시 저장
+     - 에러 → 기존 에러 처리 로직
+- **Repository API 캐싱** (라인 221-267):
+  1. 각 레포지토리별 캐시 키 생성
+  2. 병렬 캐시 조회 (`Promise.all`)
+  3. ETag 기반 조건부 요청
+  4. 응답 처리 (Code Search와 동일)
+  5. 병렬 캐시 저장
+
+**Fallback Handling**:
+
+- Redis 클라이언트 초기화 실패 → `redis = null`
+- 모든 캐시 함수는 `redis === null` 체크 후 early return
+- 캐시 없이 GitHub API 직접 호출 (기존 로직 유지)
+
+#### Dependencies
+
+- **Deno Import Map** (`supabase/functions/deno.json`):
+  ```json
+  {
+    "imports": {
+      "@upstash/redis": "npm:@upstash/redis@1.34.3"
+    }
+  }
+  ```
+
+#### Environment Variables
+
+**Development** (`supabase/.env`):
+
+```bash
+ALLOWED_ORIGINS=http://localhost:5173
+UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token
+CACHE_TTL_SECONDS=86400  # Optional
+```
+
+**Production** (Supabase Dashboard):
+
+- Project Settings → Edge Functions → Environment Variables
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `CACHE_TTL_SECONDS` (선택사항)
+
+#### Documentation Updates
+
+- **README.md**:
+  - Supabase Edge Functions 환경변수 테이블에 Redis 관련 변수 추가
+  - Development Setup 예시 업데이트
+  - Deployment 가이드에 Redis 환경변수 설정 추가
+
+#### Performance Benefits
+
+- **캐시 히트 시**: GitHub API 호출 0회 (304 응답 또는 캐시 재사용)
+- **Rate Limit 절약**: 동일 검색 반복 시 API 호출 최소화
+- **응답 속도**: 캐시된 데이터는 즉시 반환 (네트워크 레이턴시 제거)
+- **병렬 처리**: 여러 레포지토리 캐시 조회/저장을 동시에 수행
+
+#### Files Created
+
+- `supabase/functions/search/cache.ts`
+
+#### Files Modified
+
+- `supabase/functions/search/index.ts`
+- `supabase/functions/deno.json`
+- `README.md`
+
+#### Next Steps
+
+- [ ] 로컬 테스트 (Redis 연결, 캐시 동작 확인)
+- [ ] ETag 조건부 요청 검증
+- [ ] Fallback 동작 테스트
+- [ ] Walkthrough 작성
+
+---
+
 ## 2026-01-18/19 (Late Night)
 
 ### Search API Refactoring & Security Improvements
