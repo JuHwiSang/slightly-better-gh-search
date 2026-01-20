@@ -4,6 +4,268 @@
 
 ---
 
+## 2026-01-20 (Evening)
+
+### Enhanced GitHub Code Search API Integration
+
+#### Overview
+
+- **변경사항**: GitHub Code Search API 문서 업데이트에 따른 새 기능 통합
+- **목적**: Text-match metadata, cursor-based pagination, incomplete_results
+  지원
+- **주요 기능**:
+  - 검색어 하이라이팅을 위한 text-match metadata
+  - 페이지+인덱스 기반 정밀 커서 시스템 (`{page}:{index}`)
+  - GitHub API 타임아웃 추적 (`incomplete_results`)
+
+#### Documentation Updates
+
+**GitHub API 문서** (`docs/github/code-search-api.md`):
+
+- **General Search Behavior**: 1,000개 결과 제한, 랭킹 정보
+- **Custom Rate Limits**: Code Search 10 req/min, 기타 30 req/min
+- **Query Construction**: 쿼리 길이 제한 (256자), 연산자 제한 (5개)
+- **Search Scope Limits**: 최대 4,000 저장소 검색
+- **Timeouts and Incomplete Results**: `incomplete_results` 필드 설명
+- **Access Errors**: 인증 및 권한 관련 에러 처리
+- **Text Match Metadata**: 검색어 하이라이팅을 위한 메타데이터 구조
+
+#### Type Definitions (`supabase/functions/search/types.ts`)
+
+**신규 인터페이스**:
+
+```typescript
+// Text match metadata for highlighting search terms
+export interface TextMatch {
+  object_url: string;
+  object_type: string;
+  property: string; // e.g., "body", "path"
+  fragment: string; // Subset of property value containing matches
+  matches: Match[];
+}
+
+export interface Match {
+  text: string; // The matching search term
+  indices: [number, number]; // [start, end] position in fragment
+}
+```
+
+**업데이트된 인터페이스**:
+
+- `SearchRequest.cursor`: `{page}:{index}` 형식 문서화
+- `SearchResponse`:
+  - `nextCursor`: 새 형식 문서화
+  - `incomplete_results: boolean` 필드 추가
+- `SearchResultItem`: `text_matches?: TextMatch[]` 필드 추가
+- `GitHubCodeSearchItem`: `text_matches?: TextMatch[]` 필드 추가
+
+#### GitHub API Client (`supabase/functions/search/github.ts`)
+
+**Accept 헤더 변경**:
+
+```typescript
+// Before
+Accept: "application/vnd.github+json";
+
+// After
+Accept: "application/vnd.github.text-match+json";
+```
+
+**효과**: GitHub API가 응답에 `text_matches` 배열 포함
+
+#### Edge Function Logic (`supabase/functions/search/index.ts`)
+
+**1. Cursor 파싱** (라인 71-84):
+
+```typescript
+// Parse cursor as "{page}:{index}" format
+let startPage = 1;
+let startIndex = 0;
+if (cursor) {
+  const parts = cursor.split(":");
+  if (parts.length === 2) {
+    startPage = parseInt(parts[0], 10);
+    startIndex = parseInt(parts[1], 10);
+  } else {
+    // Backward compatibility: treat as page number only
+    startPage = parseInt(cursor, 10);
+  }
+}
+```
+
+**2. Incomplete Results 추적** (라인 91, 93):
+
+```typescript
+let incompleteResults = false;
+
+// In fetch loop
+incompleteResults = incompleteResults || searchData.incomplete_results;
+```
+
+**3. 인덱스 기반 필터링** (라인 107-115):
+
+```typescript
+for (let i = 0; i < searchData.items.length; i++) {
+  const item = searchData.items[i];
+
+  // Skip items before cursor index on the starting page
+  if (currentPage === startPage && i < startIndex) {
+    continue;
+  }
+
+  // ... filter logic ...
+
+  currentIndex = i + 1; // Track position for next cursor
+}
+```
+
+**4. Cursor 생성** (라인 157-166):
+
+```typescript
+let nextCursor: string | null = null;
+if (hasMore && filteredItems.length >= limit) {
+  // If we stopped mid-page, use current index; otherwise use next page
+  if (currentIndex > 0 && currentIndex < RESULTS_PER_PAGE) {
+    nextCursor = `${currentPage - 1}:${currentIndex}`;
+  } else {
+    nextCursor = `${currentPage}:0`;
+  }
+}
+```
+
+**5. Text-Match Passthrough** (라인 141):
+
+```typescript
+filteredItems.push({
+  // ... other fields ...
+  text_matches: item.text_matches,
+});
+```
+
+#### Frontend Component (`src/lib/components/SearchResultCard.svelte`)
+
+**TextMatch 인터페이스 추가**:
+
+```typescript
+interface TextMatch {
+  object_url: string;
+  object_type: string;
+  property: string;
+  fragment: string;
+  matches: Array<{
+    text: string;
+    indices: [number, number];
+  }>;
+}
+
+interface SearchResult {
+  // ... existing fields ...
+  text_matches?: TextMatch[];
+}
+```
+
+**하이라이팅 함수** (라인 25-77):
+
+```typescript
+function highlightLine(line: string, lineIndex: number): string {
+  if (!result.text_matches) return line;
+
+  // Calculate line position in full text
+  const lineStart =
+    result.codeSnippet.lines.slice(0, lineIndex).join("\n").length + lineIndex;
+  const lineEnd = lineStart + line.length;
+
+  // Collect all matches that overlap with this line
+  const highlights: Array<{ start: number; end: number; text: string }> = [];
+
+  for (const textMatch of result.text_matches) {
+    // Only process matches for file content
+    if (textMatch.property !== "body" && textMatch.property !== "path") {
+      continue;
+    }
+
+    for (const match of textMatch.matches) {
+      const [matchStart, matchEnd] = match.indices;
+      if (matchStart < lineEnd && matchEnd > lineStart) {
+        highlights.push({
+          start: Math.max(0, matchStart - lineStart),
+          end: Math.min(line.length, matchEnd - lineStart),
+          text: match.text,
+        });
+      }
+    }
+  }
+
+  // Build HTML with <mark> tags
+  // ...
+}
+```
+
+**템플릿 업데이트**:
+
+```svelte
+{#each result.codeSnippet.lines as line, index}
+  <div>{@html highlightLine(line, index)}</div>
+{/each}
+```
+
+**스타일링**: `bg-yellow-400/30 text-yellow-200` (노란색 반투명 배경)
+
+#### Cursor Format Specification
+
+**형식**: `{page}:{index}`
+
+**예시**:
+
+- `1:0` - 1페이지 시작
+- `2:15` - 2페이지의 15번 아이템 (0-indexed)
+- `3:0` - 3페이지 시작
+
+**하위 호환성**: 기존 페이지 전용 커서 (예: `"2"`)는 `{page}:0`으로 처리
+
+#### Documentation Updates
+
+**GEMINI.md**:
+
+- **GitHub API Integration** 섹션 추가:
+  - Cursor 형식 (`{page}:{index}`)
+  - Text-match metadata 요청 방법
+  - `incomplete_results` 추적 패턴
+  - `text_matches` passthrough
+- **Text-Match Highlighting** 섹션 추가:
+  - `{@html}` 사용법
+  - `<mark>` 태그 스타일링
+  - XSS 방지 주의사항
+
+#### Known Limitations
+
+1. **Search Page**: 현재 mock 데이터 사용, Edge Function 미연동
+2. **Incomplete Results Warning**: UI 미구현 (API 연동 필요)
+3. **Highlighting Algorithm**: `text_matches` 인덱스가 전체 파일 기준이라고 가정
+   - 실제 GitHub API 동작에 따라 조정 필요할 수 있음
+
+#### Files Created
+
+- None (모두 기존 파일 수정)
+
+#### Files Modified
+
+- `supabase/functions/search/types.ts` - Type definitions
+- `supabase/functions/search/github.ts` - Accept header
+- `supabase/functions/search/index.ts` - Cursor logic, incomplete_results
+- `src/lib/components/SearchResultCard.svelte` - Text-match highlighting
+- `GEMINI.md` - New patterns documentation
+
+#### Next Steps
+
+- [ ] Search 페이지를 Edge Function API에 연동
+- [ ] Incomplete results 경고 UI 구현
+- [ ] 실제 GitHub API 응답으로 테스트
+- [ ] Text-match 하이라이팅 검증
+- [ ] Pagination 컴포넌트를 cursor-based로 업데이트
+
+---
+
 ## 2026-01-20 (Late Night)
 
 ### Edge Function Refactoring

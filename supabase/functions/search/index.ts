@@ -68,14 +68,27 @@ Deno.serve(async (req) => {
     // Initialize Redis client (null if not configured)
     const redis = createRedisClient();
 
-    // Parse cursor to determine starting page
-    const startPage = cursor ? parseInt(cursor, 10) : 1;
+    // Parse cursor to determine starting page and index
+    let startPage = 1;
+    let startIndex = 0;
+    if (cursor) {
+      const parts = cursor.split(":");
+      if (parts.length === 2) {
+        startPage = parseInt(parts[0], 10);
+        startIndex = parseInt(parts[1], 10);
+      } else {
+        // Backward compatibility: treat as page number only
+        startPage = parseInt(cursor, 10);
+      }
+    }
 
     // Fetch and filter results
     const filteredItems: SearchResultItem[] = [];
     let currentPage = startPage;
+    let currentIndex = 0;
     let totalCount = 0;
     let hasMore = true;
+    let incompleteResults = false; // Track if any page had incomplete results
 
     // Keep fetching pages until we have enough filtered results
     while (
@@ -92,6 +105,7 @@ Deno.serve(async (req) => {
       );
 
       totalCount = searchData.total_count;
+      incompleteResults = incompleteResults || searchData.incomplete_results;
 
       // If no more results, break
       if (searchData.items.length === 0) {
@@ -107,7 +121,14 @@ Deno.serve(async (req) => {
       const repoMap = await fetchRepositories(redis, githubToken, uniqueRepos);
 
       // Apply filter and build result items
-      for (const item of searchData.items) {
+      for (let i = 0; i < searchData.items.length; i++) {
+        const item = searchData.items[i];
+
+        // Skip items before cursor index on the starting page
+        if (currentPage === startPage && i < startIndex) {
+          continue;
+        }
+
         const repoInfo = repoMap.get(item.repository.full_name);
         if (!repoInfo) continue; // Skip if repo info fetch failed
 
@@ -133,7 +154,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Add to filtered results
+        // Add to filtered results with text_matches
         filteredItems.push({
           name: item.name,
           path: item.path,
@@ -143,7 +164,10 @@ Deno.serve(async (req) => {
           html_url: item.html_url,
           repository: repoInfo,
           score: item.score,
+          text_matches: item.text_matches, // Pass through text-match metadata
         });
+
+        currentIndex = i + 1; // Track position for next cursor
 
         // Stop if we have enough results
         if (filteredItems.length >= limit) {
@@ -153,6 +177,7 @@ Deno.serve(async (req) => {
 
       // Move to next page
       currentPage++;
+      currentIndex = 0; // Reset index for new page
 
       // Check if there are more pages available
       if (currentPage * RESULTS_PER_PAGE >= totalCount) {
@@ -161,14 +186,24 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Generate next cursor
+    let nextCursor: string | null = null;
+    if (hasMore && filteredItems.length >= limit) {
+      // If we stopped mid-page, use current index; otherwise use next page
+      if (currentIndex > 0 && currentIndex < RESULTS_PER_PAGE) {
+        nextCursor = `${currentPage - 1}:${currentIndex}`;
+      } else {
+        nextCursor = `${currentPage}:0`;
+      }
+    }
+
     // Prepare response
     const response: SearchResponse = {
       items: filteredItems.slice(0, limit),
-      nextCursor: hasMore && filteredItems.length >= limit
-        ? currentPage.toString()
-        : null,
+      nextCursor,
       totalCount,
       hasMore: hasMore && filteredItems.length >= limit,
+      incomplete_results: incompleteResults,
     };
 
     return new Response(JSON.stringify(response), {

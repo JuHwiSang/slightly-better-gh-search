@@ -3,15 +3,16 @@
 export interface SearchRequest {
   query: string;
   filter?: string;
-  cursor?: string | null;
+  cursor?: string | null; // Format: "{page}:{index}" e.g., "2:15"
   limit?: number;
 }
 
 export interface SearchResponse {
   items: SearchResultItem[];
-  nextCursor: string | null;
+  nextCursor: string | null; // Format: "{page}:{index}"
   totalCount: number;
   hasMore: boolean;
+  incomplete_results: boolean; // True if GitHub API timed out
 }
 
 export interface SearchResultItem {
@@ -23,6 +24,21 @@ export interface SearchResultItem {
   html_url: string;
   repository: RepositoryInfo;
   score: number;
+  text_matches?: TextMatch[]; // Search term highlighting metadata
+}
+
+// Text match metadata for highlighting search terms
+export interface TextMatch {
+  object_url: string;
+  object_type: string;
+  property: string; // e.g., "body", "path"
+  fragment: string; // Subset of property value containing matches
+  matches: Match[];
+}
+
+export interface Match {
+  text: string; // The matching search term
+  indices: [number, number]; // [start, end] position in fragment
 }
 
 export interface RepositoryInfo {
@@ -82,4 +98,5 @@ export interface GitHubCodeSearchItem {
     fork: boolean;
   };
   score: number;
+  text_matches?: TextMatch[]; // Available when Accept header includes text-match
 }

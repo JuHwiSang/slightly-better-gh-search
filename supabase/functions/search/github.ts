@@ -29,7 +29,7 @@ export async function fetchCodeSearch(
   // Prepare request headers
   const searchHeaders: HeadersInit = {
     Authorization: `Bearer ${githubToken}`,
-    Accept: "application/vnd.github+json",
+    Accept: "application/vnd.github.text-match+json", // Request text-match metadata
     "X-GitHub-Api-Version": "2022-11-28",
   };
 

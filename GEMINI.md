@@ -29,8 +29,8 @@ Tailwind CSS
 ```typescript
 // ✅ Use $state runes (NOT writable stores)
 class AuthState {
-    user = $state<User | null>(null);
-    isAuthenticated = $state(false);
+  user = $state<User | null>(null);
+  isAuthenticated = $state(false);
 }
 
 // ✅ Use standard DOM events (NOT on:click)
@@ -85,13 +85,13 @@ let isQueryEmpty = $derived(!query.trim());
 ```typescript
 // ✅ State-aware Enter key handling
 function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === "Enter") {
-        if (authState.isAuthenticated) {
-            handleExecute();
-        } else {
-            handleGitHubLogin();
-        }
+  if (event.key === "Enter") {
+    if (authState.isAuthenticated) {
+      handleExecute();
+    } else {
+      handleGitHubLogin();
     }
+  }
 }
 ```
 
@@ -100,12 +100,47 @@ function handleKeyDown(event: KeyboardEvent) {
 ```typescript
 // ✅ Preserve all params during navigation
 function buildPageUrl(page: number): string {
-    const params = new URLSearchParams();
-    if (query) params.set("query", query);
-    if (filter) params.set("filter", filter);
-    params.set("page", page.toString());
-    return `/search?${params.toString()}`;
+  const params = new URLSearchParams();
+  if (query) params.set("query", query);
+  if (filter) params.set("filter", filter);
+  params.set("page", page.toString());
+  return `/search?${params.toString()}`;
 }
+```
+
+### GitHub API Integration
+
+```typescript
+// ✅ Cursor format: "{page}:{index}" for precise pagination
+const cursor = "2:15"; // Page 2, item 15
+const [page, index] = cursor.split(":").map(Number);
+
+// ✅ Request text-match metadata for highlighting
+Accept: "application/vnd.github.text-match+json";
+
+// ✅ Track incomplete_results across multiple pages
+let incompleteResults = false;
+incompleteResults = incompleteResults || searchData.incomplete_results;
+
+// ✅ Pass through text_matches from GitHub API
+filteredItems.push({
+  // ... other fields ...
+  text_matches: item.text_matches,
+});
+```
+
+### Text-Match Highlighting
+
+```typescript
+// ✅ Use {@html} with sanitized highlighting
+{#each lines as line, index}
+  <div>{@html highlightLine(line, index)}</div>
+{/each}
+
+// ✅ Highlight with <mark> tags and Tailwind classes
+const highlighted = `<mark class="bg-yellow-400/30 text-yellow-200">${term}</mark>`;
+
+// ❌ Don't use dangerouslySetInnerHTML or unsanitized HTML
 ```
 
 ---

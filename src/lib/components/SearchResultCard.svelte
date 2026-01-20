@@ -1,6 +1,17 @@
 <script lang="ts">
 	import IconLucideFolderOpen from '~icons/lucide/folder-open';
 
+	interface TextMatch {
+		object_url: string;
+		object_type: string;
+		property: string;
+		fragment: string;
+		matches: Array<{
+			text: string;
+			indices: [number, number];
+		}>;
+	}
+
 	interface SearchResult {
 		repository: string;
 		filePath: string;
@@ -12,6 +23,7 @@
 			startLine: number;
 			lines: string[];
 		};
+		text_matches?: TextMatch[];
 	}
 
 	interface Props {
@@ -19,6 +31,61 @@
 	}
 
 	let { result }: Props = $props();
+
+	/**
+	 * Apply text-match highlighting to a code line
+	 * Returns HTML string with highlighted terms wrapped in <mark> tags
+	 */
+	function highlightLine(line: string, lineIndex: number): string {
+		if (!result.text_matches) return line;
+
+		// Find text matches for this line
+		const lineStart = result.codeSnippet.lines.slice(0, lineIndex).join('\n').length + lineIndex;
+		const lineEnd = lineStart + line.length;
+
+		// Collect all matches that overlap with this line
+		const highlights: Array<{ start: number; end: number; text: string }> = [];
+
+		for (const textMatch of result.text_matches) {
+			// Only process matches for file content
+			if (textMatch.property !== 'body' && textMatch.property !== 'path') continue;
+
+			for (const match of textMatch.matches) {
+				const [matchStart, matchEnd] = match.indices;
+				// Check if match overlaps with current line
+				if (matchStart < lineEnd && matchEnd > lineStart) {
+					highlights.push({
+						start: Math.max(0, matchStart - lineStart),
+						end: Math.min(line.length, matchEnd - lineStart),
+						text: match.text
+					});
+				}
+			}
+		}
+
+		// If no highlights, return original line
+		if (highlights.length === 0) return line;
+
+		// Sort highlights by start position
+		highlights.sort((a, b) => a.start - b.start);
+
+		// Build highlighted string
+		let result_html = '';
+		let lastIndex = 0;
+
+		for (const highlight of highlights) {
+			// Add text before highlight
+			result_html += line.slice(lastIndex, highlight.start);
+			// Add highlighted text
+			result_html += `<mark class="bg-yellow-400/30 text-yellow-200">${line.slice(highlight.start, highlight.end)}</mark>`;
+			lastIndex = highlight.end;
+		}
+
+		// Add remaining text
+		result_html += line.slice(lastIndex);
+
+		return result_html;
+	}
 </script>
 
 <article class="flex flex-col gap-2">
@@ -53,8 +120,8 @@
 
 			<!-- Code Lines -->
 			<div class="flex flex-col px-4 whitespace-pre text-slate-300">
-				{#each result.codeSnippet.lines as line}
-					<div>{line}</div>
+				{#each result.codeSnippet.lines as line, index}
+					<div>{@html highlightLine(line, index)}</div>
 				{/each}
 			</div>
 		</div>
