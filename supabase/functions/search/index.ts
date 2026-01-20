@@ -7,6 +7,51 @@ import { fetchCodeSearch, fetchRepositories } from "./github.ts";
 
 const RESULTS_PER_PAGE = 100; // GitHub max
 const MAX_PAGES_TO_FETCH = 3; // Limit to avoid excessive API calls
+const MAX_GITHUB_PAGE = 10; // GitHub Code Search limit (1000 results / 100 per page)
+
+/**
+ * Parse and validate cursor parameter
+ * @param cursor - Cursor string in format "page:index" or just "page"
+ * @returns Object with validated page and index, or null if invalid
+ */
+function parseCursor(cursor: string | null): {
+  page: number;
+  index: number;
+} | null {
+  if (!cursor) {
+    return null;
+  }
+
+  const parts = cursor.split(":");
+
+  if (parts.length === 2) {
+    // New format: "page:index"
+    const page = parseInt(parts[0], 10);
+    const index = parseInt(parts[1], 10);
+
+    // Validate parsed values
+    if (
+      isNaN(page) || isNaN(index) ||
+      page < 1 || page > MAX_GITHUB_PAGE ||
+      index < 0 || index >= RESULTS_PER_PAGE
+    ) {
+      return null; // Invalid cursor
+    }
+
+    return { page, index };
+  } else if (parts.length === 1) {
+    // Backward compatibility: treat as page number only
+    const page = parseInt(parts[0], 10);
+
+    if (isNaN(page) || page < 1 || page > MAX_GITHUB_PAGE) {
+      return null; // Invalid cursor
+    }
+
+    return { page, index: 0 };
+  }
+
+  return null; // Invalid format
+}
 
 Deno.serve(async (req) => {
   // Parse CORS configuration
@@ -68,19 +113,23 @@ Deno.serve(async (req) => {
     // Initialize Redis client (null if not configured)
     const redis = createRedisClient();
 
-    // Parse cursor to determine starting page and index
-    let startPage = 1;
-    let startIndex = 0;
-    if (cursor) {
-      const parts = cursor.split(":");
-      if (parts.length === 2) {
-        startPage = parseInt(parts[0], 10);
-        startIndex = parseInt(parts[1], 10);
-      } else {
-        // Backward compatibility: treat as page number only
-        startPage = parseInt(cursor, 10);
-      }
+    // Parse and validate cursor
+    const cursorData = parseCursor(cursor);
+    if (cursor && !cursorData) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Invalid cursor format. Expected 'page:index' where page is 1-10 and index is 0-99.",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
+
+    const startPage = cursorData?.page ?? 1;
+    const startIndex = cursorData?.index ?? 0;
 
     // Fetch and filter results
     const filteredItems: SearchResultItem[] = [];
