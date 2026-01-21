@@ -5,11 +5,7 @@ import { generateCorsHeaders, parseCorsConfig } from "./cors.ts";
 import { createSupabaseClient, getGitHubToken } from "./auth.ts";
 import { fetchCodeSearch, fetchRepositories } from "./github.ts";
 import { ApiError } from "./errors.ts";
-
-const RESULTS_PER_PAGE = 100; // GitHub max
-const MAX_PAGES_TO_FETCH = 3; // Limit to avoid excessive API calls
-const MAX_GITHUB_PAGE = 10; // GitHub Code Search limit (1000 results / 100 per page)
-const MAX_LIMIT = 30; // Maximum number of results per request
+import { config } from "./config.ts";
 
 /**
  * Parse and validate cursor parameter
@@ -34,8 +30,8 @@ function parseCursor(cursor: string | null): {
     // Validate parsed values
     if (
       isNaN(page) || isNaN(index) ||
-      page < 1 || page > MAX_GITHUB_PAGE ||
-      index < 0 || index >= RESULTS_PER_PAGE
+      page < 1 || page > config.github.maxPage ||
+      index < 0 || index >= config.github.resultsPerPage
     ) {
       return null; // Invalid cursor
     }
@@ -45,7 +41,7 @@ function parseCursor(cursor: string | null): {
     // Backward compatibility: treat as page number only
     const page = parseInt(parts[0], 10);
 
-    if (isNaN(page) || page < 1 || page > MAX_GITHUB_PAGE) {
+    if (isNaN(page) || page < 1 || page > config.github.maxPage) {
       return null; // Invalid cursor
     }
 
@@ -79,7 +75,10 @@ Deno.serve(async (req) => {
     const query = url.searchParams.get("query") || "";
     const filter = url.searchParams.get("filter") || "";
     const cursor = url.searchParams.get("cursor");
-    const limit = parseInt(url.searchParams.get("limit") || "30", 10);
+    const limit = parseInt(
+      url.searchParams.get("limit") || config.search.defaultLimit.toString(),
+      10,
+    );
 
     // Validate query
     if (!query || query.trim() === "") {
@@ -87,10 +86,10 @@ Deno.serve(async (req) => {
     }
 
     // Validate limit
-    if (isNaN(limit) || limit < 1 || limit > MAX_LIMIT) {
+    if (isNaN(limit) || limit < 1 || limit > config.search.maxLimit) {
       throw new ApiError(
         400,
-        `Invalid limit parameter. Must be between 1 and ${MAX_LIMIT}.`,
+        `Invalid limit parameter. Must be between 1 and ${config.search.maxLimit}.`,
       );
     }
 
@@ -112,7 +111,9 @@ Deno.serve(async (req) => {
     if (cursor && !cursorData) {
       throw new ApiError(
         400,
-        "Invalid cursor format. Expected 'page:index' where page is 1-10 and index is 0-99.",
+        `Invalid cursor format. Expected 'page:index' where page is 1-${config.github.maxPage} and index is 0-${
+          config.github.resultsPerPage - 1
+        }.`,
       );
     }
 
@@ -130,7 +131,7 @@ Deno.serve(async (req) => {
     // Keep fetching pages until we have enough filtered results
     while (
       filteredItems.length < limit &&
-      currentPage <= startPage + MAX_PAGES_TO_FETCH - 1
+      currentPage <= startPage + config.search.maxPagesToFetch - 1
     ) {
       // Fetch code search results from GitHub
       const searchData = await fetchCodeSearch(
@@ -138,7 +139,7 @@ Deno.serve(async (req) => {
         githubToken,
         query,
         currentPage,
-        RESULTS_PER_PAGE,
+        config.github.resultsPerPage,
       );
 
       totalCount = searchData.total_count;
@@ -212,7 +213,7 @@ Deno.serve(async (req) => {
       currentIndex = 0; // Reset index for new page
 
       // Check if there are more pages available
-      if (currentPage * RESULTS_PER_PAGE >= totalCount) {
+      if (currentPage * config.github.resultsPerPage >= totalCount) {
         hasMore = false;
         break;
       }
@@ -222,7 +223,7 @@ Deno.serve(async (req) => {
     let nextCursor: string | null = null;
     if (hasMore && filteredItems.length >= limit) {
       // If we stopped mid-page, use current index; otherwise use next page
-      if (currentIndex > 0 && currentIndex < RESULTS_PER_PAGE) {
+      if (currentIndex > 0 && currentIndex < config.github.resultsPerPage) {
         nextCursor = `${currentPage - 1}:${currentIndex}`;
       } else {
         nextCursor = `${currentPage}:0`;

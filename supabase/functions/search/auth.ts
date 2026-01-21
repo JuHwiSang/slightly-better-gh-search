@@ -1,13 +1,14 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "./errors.ts";
+import { config } from "./config.ts";
 
 /**
  * Initialize Supabase client with service_role key and authorization header
  */
 export function createSupabaseClient(authHeader: string): SupabaseClient {
   return createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    config.supabase.url,
+    config.supabase.serviceRoleKey,
     {
       global: {
         headers: { Authorization: authHeader },

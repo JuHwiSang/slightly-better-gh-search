@@ -2,6 +2,8 @@
  * CORS configuration and header generation
  */
 
+import { config } from "./config.ts";
+
 export interface CorsConfig {
   allowedOrigins: string[];
   origin: string;
@@ -11,14 +13,12 @@ export interface CorsConfig {
  * Parse CORS configuration from environment and request
  */
 export function parseCorsConfig(req: Request): CorsConfig {
-  const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") || "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-
   const origin = req.headers.get("Origin") || "";
 
-  return { allowedOrigins, origin };
+  return {
+    allowedOrigins: config.cors.allowedOrigins,
+    origin,
+  };
 }
 
 /**

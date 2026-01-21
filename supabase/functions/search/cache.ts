@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import { config } from "./config.ts";
 
 /**
  * Cached data structure with ETag support
@@ -13,18 +14,15 @@ export interface CachedData<T> {
  * Returns null if Redis credentials are not configured
  */
 export function createRedisClient(): Redis | null {
-  const url = Deno.env.get("UPSTASH_REDIS_REST_URL");
-  const token = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
-
-  if (!url || !token) {
+  if (!config.isRedisEnabled) {
     console.warn("Redis credentials not configured. Caching disabled.");
     return null;
   }
 
   try {
     return new Redis({
-      url,
-      token,
+      url: config.redis.url!,
+      token: config.redis.token!,
     });
   } catch (error) {
     console.error("Failed to initialize Redis client:", error);

@@ -4,6 +4,178 @@
 
 ---
 
+## 2026-01-21 (Evening)
+
+### Centralized Configuration with SearchConfig Class
+
+#### Overview
+
+- **변경사항**: Edge Function 설정을 클래스 기반 시스템으로 중앙화
+- **목적**: 환경변수 읽기 로직 분산 문제 해결 및 validation 강화
+- **주요 개선**:
+  - 모든 설정을 `config.ts`로 통합
+  - 생성자에서 환경변수 validation 수행
+  - 하드코딩된 상수를 config 프로퍼티로 이동
+
+#### Implementation Details
+
+**신규 모듈** (`supabase/functions/search/config.ts`):
+
+```typescript
+export class SearchConfig {
+  readonly github: { resultsPerPage: number; maxPage: number };
+  readonly search: {
+    maxPagesToFetch: number;
+    maxLimit: number;
+    defaultLimit: number;
+  };
+  readonly redis: {
+    url: string | null;
+    token: string | null;
+    ttl: { codeSearch: number; repository: number };
+  };
+  readonly supabase: { url: string; serviceRoleKey: string };
+  readonly cors: { allowedOrigins: string[] };
+
+  constructor() {
+    // Validation methods for each setting
+    this.redis.ttl.codeSearch = this.validateTTL(
+      Deno.env.get("REDIS_CODE_SEARCH_TTL"),
+      3600,
+      "REDIS_CODE_SEARCH_TTL",
+    );
+    this.supabase.url = this.validateRequired(
+      Deno.env.get("SUPABASE_URL"),
+      "SUPABASE_URL",
+    );
+    // ...
+  }
+
+  private validateRequired(value: string | undefined, name: string): string {
+    /* ... */
+  }
+  private validateTTL(
+    value: string | undefined,
+    defaultValue: number,
+    name: string,
+  ): number {/* ... */}
+
+  get isRedisEnabled(): boolean {
+    return this.redis.url !== null && this.redis.token !== null;
+  }
+  get isCorsEnabled(): boolean {
+    return this.cors.allowedOrigins.length > 0;
+  }
+}
+
+export const config = new SearchConfig(); // Singleton
+```
+
+**Validation Methods**:
+
+- `validateRequired()`: 필수 환경변수 검증 (throw on missing)
+- `validateTTL()`: TTL 값 파싱 및 검증 (음수 불허)
+- `getRedisUrl()`, `getRedisToken()`: Redis 설정 추출
+- `parseAllowedOrigins()`: CORS origins 파싱
+
+**Helper Properties**:
+
+- `isRedisEnabled`: Redis 사용 가능 여부 체크
+- `isCorsEnabled`: CORS 활성화 여부 체크
+
+#### Changes by File
+
+**Before/After 비교**:
+
+| 파일        | Before                     | After                                          |
+| ----------- | -------------------------- | ---------------------------------------------- |
+| `index.ts`  | 하드코딩된 상수 4개        | `config.github.*`, `config.search.*` 사용      |
+| `cache.ts`  | `Deno.env.get()` 직접 호출 | `config.redis.*`, `config.isRedisEnabled` 사용 |
+| `auth.ts`   | `Deno.env.get()` 직접 호출 | `config.supabase.*` 사용                       |
+| `cors.ts`   | 환경변수 파싱 로직 포함    | `config.cors.allowedOrigins` 사용              |
+| `github.ts` | `Deno.env.get()` 직접 호출 | `config.redis.ttl.*` 사용                      |
+
+**1. index.ts**:
+
+- 제거: `RESULTS_PER_PAGE`, `MAX_PAGES_TO_FETCH`, `MAX_GITHUB_PAGE`, `MAX_LIMIT`
+  상수
+- 추가: `import { config } from "./config.ts"`
+- 변경: 모든 상수 참조를 `config.*` 프로퍼티로 교체 (9곳)
+
+**2. cache.ts**:
+
+- 제거: `createRedisClient()` 내부의 환경변수 읽기 로직
+- 변경: `config.isRedisEnabled` 체크 후 `config.redis.url!`,
+  `config.redis.token!` 사용
+
+**3. auth.ts**:
+
+- 제거: `createSupabaseClient()` 내부의 환경변수 읽기
+- 변경: `config.supabase.url`, `config.supabase.serviceRoleKey` 사용
+
+**4. cors.ts**:
+
+- 제거: `parseCorsConfig()` 내부의 `ALLOWED_ORIGINS` 파싱 로직
+- 변경: `config.cors.allowedOrigins` 직접 사용
+
+**5. github.ts**:
+
+- 제거: `fetchCodeSearch()`, `fetchRepository()` 내부의 TTL 환경변수 읽기
+- 변경: `config.redis.ttl.codeSearch`, `config.redis.ttl.repository` 사용
+
+#### Benefits
+
+1. **중앙화된 설정 관리**:
+   - 모든 설정이 한 곳에 위치
+   - 설정 변경 시 `config.ts`만 수정
+
+2. **강력한 Validation**:
+   - 앱 시작 시 모든 환경변수 검증
+   - 잘못된 설정은 즉시 에러 발생
+   - 런타임 에러 대신 시작 시점 에러
+
+3. **타입 안전성**:
+   - `readonly` 프로퍼티로 불변성 보장
+   - `string | undefined` 대신 명확한 타입
+   - Helper 메서드로 타입 가드 제공
+
+4. **코드 가독성**:
+   - `config.github.maxPage` vs `MAX_GITHUB_PAGE`
+   - 설정의 계층 구조가 명확
+   - 환경변수 읽기 로직 중복 제거
+
+5. **테스트 용이성**:
+   - 싱글톤 패턴으로 일관된 설정
+   - Mock 설정 주입 가능 (필요 시)
+
+#### Error Messages
+
+더 명확한 에러 메시지:
+
+```typescript
+// Before
+throw new Error("Missing SUPABASE_URL");
+
+// After
+throw new Error("SUPABASE_URL environment variable is required");
+throw new Error("REDIS_CODE_SEARCH_TTL must be a valid number, got: abc");
+throw new Error("REDIS_REPOSITORY_TTL must be non-negative, got: -100");
+```
+
+#### Files Created
+
+- `supabase/functions/search/config.ts` - 중앙화된 설정 클래스
+
+#### Files Modified
+
+- `supabase/functions/search/index.ts` - config 사용
+- `supabase/functions/search/cache.ts` - config 사용
+- `supabase/functions/search/auth.ts` - config 사용
+- `supabase/functions/search/cors.ts` - config 사용
+- `supabase/functions/search/github.ts` - config 사용
+
+---
+
 ## 2026-01-21 (Late Afternoon)
 
 ### Separate Cache TTL Configurations
