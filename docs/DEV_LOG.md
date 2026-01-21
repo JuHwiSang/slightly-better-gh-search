@@ -4,6 +4,151 @@
 
 ---
 
+## 2026-01-21 (Late Afternoon)
+
+### Separate Cache TTL Configurations
+
+#### Overview
+
+- **변경사항**: 코드 검색 결과와 저장소 메타데이터에 대해 별도의 캐시 TTL 설정
+- **목적**: 데이터 변동성에 따른 캐시 전략 최적화
+- **주요 변경**:
+  - 코드 검색 결과: 1시간 TTL (자주 변경되는 데이터)
+  - 저장소 메타데이터: 24시간 TTL (안정적인 데이터)
+  - 환경변수 2개로 분리
+  - 문서 전반에 걸쳐 `.env.local` → `.env` 통일
+
+#### Implementation Details
+
+**1. Cache Module 리팩토링** (`supabase/functions/search/cache.ts`):
+
+**Before**:
+
+```typescript
+export async function setCachedData<T>(
+  redis: Redis | null,
+  key: string,
+  data: T,
+  etag?: string,
+  ttlSeconds?: number,
+): Promise<void> {
+  const defaultTTL = parseInt(Deno.env.get("CACHE_TTL_SECONDS") || "86400", 10);
+  const ttl = ttlSeconds ?? defaultTTL;
+  // ...
+}
+```
+
+**After**:
+
+```typescript
+export async function setCachedData<T>(
+  redis: Redis | null,
+  key: string,
+  data: T,
+  etag: string | undefined,
+  ttlSeconds: number, // Required parameter
+): Promise<void> {
+  // TTL must be provided by caller
+  // ...
+}
+```
+
+**변경 이유**: TTL 결정 책임을 호출자에게 위임하여 각 API 특성에 맞는 TTL 설정
+가능
+
+**2. GitHub API Client 업데이트** (`supabase/functions/search/github.ts`):
+
+**Code Search API** (1시간 TTL):
+
+```typescript
+// Cache the new data with ETag (1 hour TTL for volatile search results)
+const searchTTL = parseInt(
+  Deno.env.get("CACHE_TTL_CODE_SEARCH_SECONDS") || "3600",
+  10,
+);
+await setCachedData(redis, cacheKey, searchData, newEtag, searchTTL);
+```
+
+**Repository API** (24시간 TTL):
+
+```typescript
+// Cache the new data with ETag (24 hour TTL for stable repo metadata)
+const repoTTL = parseInt(
+  Deno.env.get("CACHE_TTL_REPOSITORY_SECONDS") || "86400",
+  10,
+);
+await setCachedData(redis, repoCacheKey, repoData, repoEtag, repoTTL);
+```
+
+#### Environment Variables
+
+**신규 환경변수**:
+
+- `CACHE_TTL_CODE_SEARCH_SECONDS`: 코드 검색 결과 캐시 TTL (기본값: 3600초 =
+  1시간)
+- `CACHE_TTL_REPOSITORY_SECONDS`: 저장소 메타데이터 캐시 TTL (기본값: 86400초 =
+  24시간)
+
+**기존 환경변수 제거**:
+
+- `CACHE_TTL_SECONDS` (단일 TTL 설정)
+
+**로컬 개발** (`supabase/.env`):
+
+```bash
+# Cache TTL for code search results (optional, default: 3600 seconds = 1 hour)
+CACHE_TTL_CODE_SEARCH_SECONDS=3600
+
+# Cache TTL for repository metadata (optional, default: 86400 seconds = 24 hours)
+CACHE_TTL_REPOSITORY_SECONDS=86400
+```
+
+**배포** (Supabase CLI):
+
+```bash
+# Set cache TTL
+supabase secrets set CACHE_TTL_CODE_SEARCH_SECONDS=3600
+supabase secrets set CACHE_TTL_REPOSITORY_SECONDS=86400
+```
+
+#### Documentation Updates
+
+**README.md**:
+
+- Environment Variables 테이블 업데이트 (2개 TTL 변수 추가)
+- Development Setup 섹션 업데이트
+- Deployment 섹션 업데이트
+- `.env.local` → `.env` 통일
+
+**Environment Configuration Files**:
+
+- `supabase/.env.example`: 2개 TTL 변수로 교체
+- `.env.example`: 배포 명령어 예시 업데이트, `.env.local` → `.env` 변경
+
+#### Rationale
+
+**코드 검색 결과 (1시간)**:
+
+- 저장소 코드가 자주 업데이트됨
+- 검색 결과가 빠르게 변경될 수 있음
+- 짧은 TTL로 신선도 유지
+
+**저장소 메타데이터 (24시간)**:
+
+- Stars, forks, language 등은 상대적으로 안정적
+- 자주 변경되지 않음
+- 긴 TTL로 API 호출 절약
+
+#### Files Modified
+
+- `supabase/functions/search/cache.ts` - TTL 파라미터 필수화
+- `supabase/functions/search/github.ts` - 각 API별 TTL 설정
+- `supabase/.env.example` - 2개 TTL 변수로 교체
+- `.env.example` - 배포 명령어 업데이트, `.env.local` → `.env`
+- `README.md` - 환경변수 문서화, `.env.local` → `.env`
+
+---
+
 ## 2026-01-21 (Afternoon)
 
 ### GitHub Provider Token Vault Storage

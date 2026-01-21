@@ -105,15 +105,16 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 
 ### Environment Variables
 
-| Variable                    | Description                           | Required      | Example                                             |
-| --------------------------- | ------------------------------------- | ------------- | --------------------------------------------------- |
-| `SUPABASE_URL`              | Supabase project URL                  | ✅ Yes (auto) | `https://xxx.supabase.co`                           |
-| `SUPABASE_ANON_KEY`         | Supabase anonymous key                | ✅ Yes (auto) | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (for Vault) | ✅ Yes        | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
-| `ALLOWED_ORIGINS`           | Comma-separated allowed CORS origins  | ✅ Yes        | `https://your-app.vercel.app,http://localhost:5173` |
-| `UPSTASH_REDIS_REST_URL`    | Upstash Redis REST API URL            | ✅ Yes        | `https://xxx.upstash.io`                            |
-| `UPSTASH_REDIS_REST_TOKEN`  | Upstash Redis REST API token          | ✅ Yes        | `AXXXaaaBBBcccDDD...`                               |
-| `CACHE_TTL_SECONDS`         | Cache TTL in seconds                  | ❌ No         | `86400` (default: 24h)                              |
+| Variable                        | Description                           | Required      | Example                                             |
+| ------------------------------- | ------------------------------------- | ------------- | --------------------------------------------------- |
+| `SUPABASE_URL`                  | Supabase project URL                  | ✅ Yes (auto) | `https://xxx.supabase.co`                           |
+| `SUPABASE_ANON_KEY`             | Supabase anonymous key                | ✅ Yes (auto) | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Supabase service role key (for Vault) | ✅ Yes        | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
+| `ALLOWED_ORIGINS`               | Comma-separated allowed CORS origins  | ✅ Yes        | `https://your-app.vercel.app,http://localhost:5173` |
+| `UPSTASH_REDIS_REST_URL`        | Upstash Redis REST API URL            | ✅ Yes        | `https://xxx.upstash.io`                            |
+| `UPSTASH_REDIS_REST_TOKEN`      | Upstash Redis REST API token          | ✅ Yes        | `AXXXaaaBBBcccDDD...`                               |
+| `CACHE_TTL_CODE_SEARCH_SECONDS` | Cache TTL for code search results     | ❌ No         | `3600` (default: 1h)                                |
+| `CACHE_TTL_REPOSITORY_SECONDS`  | Cache TTL for repository metadata     | ❌ No         | `86400` (default: 24h)                              |
 
 > **Note**: `SUPABASE_URL` and `SUPABASE_ANON_KEY` are automatically provided by
 > Supabase runtime.
@@ -124,7 +125,7 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 
 ### Development Setup
 
-1. Create `.env.local` file in project root for SvelteKit:
+1. Create `.env` file in project root for SvelteKit:
    ```bash
    PUBLIC_SUPABASE_URL=https://your-project.supabase.co
    PUBLIC_SUPABASE_ANON_KEY=your-anon-key
@@ -143,7 +144,8 @@ Enhanced GitHub Code Search with custom filtering capabilities.
    UPSTASH_REDIS_REST_TOKEN=your-token
 
    # (Optional) Cache TTL
-   CACHE_TTL_SECONDS=86400
+   CACHE_TTL_CODE_SEARCH_SECONDS=3600
+   CACHE_TTL_REPOSITORY_SECONDS=86400
    ```
 
 3. Run Supabase locally:
@@ -167,7 +169,8 @@ Enhanced GitHub Code Search with custom filtering capabilities.
    supabase secrets set UPSTASH_REDIS_REST_TOKEN=your-token
 
    # (Optional) Set cache TTL
-   supabase secrets set CACHE_TTL_SECONDS=86400
+   supabase secrets set CACHE_TTL_CODE_SEARCH_SECONDS=3600
+   supabase secrets set CACHE_TTL_REPOSITORY_SECONDS=86400
 
    # Verify secrets
    supabase secrets list

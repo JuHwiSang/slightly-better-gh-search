@@ -76,23 +76,23 @@ export async function getCachedData<T>(
 
 /**
  * Set cached data in Redis with TTL
+ * @param ttlSeconds - TTL in seconds (required)
  */
 export async function setCachedData<T>(
   redis: Redis | null,
   key: string,
   data: T,
-  etag?: string,
-  ttlSeconds?: number,
+  etag: string | undefined,
+  ttlSeconds: number,
 ): Promise<void> {
   if (!redis) return;
 
-  const defaultTTL = parseInt(Deno.env.get("CACHE_TTL_SECONDS") || "86400", 10);
-  const ttl = ttlSeconds ?? defaultTTL;
-
   try {
     const cachedData: CachedData<T> = { data, etag };
-    await redis.setex(key, ttl, JSON.stringify(cachedData));
-    console.log(`Cache set: ${key} (TTL: ${ttl}s, ETag: ${etag || "none"})`);
+    await redis.setex(key, ttlSeconds, JSON.stringify(cachedData));
+    console.log(
+      `Cache set: ${key} (TTL: ${ttlSeconds}s, ETag: ${etag || "none"})`,
+    );
   } catch (error) {
     console.error(`Redis set error for key ${key}:`, error);
   }

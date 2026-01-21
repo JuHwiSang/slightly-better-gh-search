@@ -73,8 +73,12 @@ export async function fetchCodeSearch(
   const searchData: GitHubCodeSearchResponse = await searchResponse.json();
   const newEtag = searchResponse.headers.get("ETag") || undefined;
 
-  // Cache the new data with ETag
-  await setCachedData(redis, cacheKey, searchData, newEtag);
+  // Cache the new data with ETag (1 hour TTL for volatile search results)
+  const searchTTL = parseInt(
+    Deno.env.get("CACHE_TTL_CODE_SEARCH_SECONDS") || "3600",
+    10,
+  );
+  await setCachedData(redis, cacheKey, searchData, newEtag, searchTTL);
 
   return searchData;
 }
@@ -135,8 +139,12 @@ export async function fetchRepository(
   const repoData: RepositoryInfo = await repoResponse.json();
   const repoEtag = repoResponse.headers.get("ETag") || undefined;
 
-  // Cache the new data with ETag
-  await setCachedData(redis, repoCacheKey, repoData, repoEtag);
+  // Cache the new data with ETag (24 hour TTL for stable repo metadata)
+  const repoTTL = parseInt(
+    Deno.env.get("CACHE_TTL_REPOSITORY_SECONDS") || "86400",
+    10,
+  );
+  await setCachedData(redis, repoCacheKey, repoData, repoEtag, repoTTL);
 
   return repoData;
 }
