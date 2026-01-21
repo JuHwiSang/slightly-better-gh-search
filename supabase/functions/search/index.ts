@@ -9,6 +9,7 @@ import { ApiError } from "./errors.ts";
 const RESULTS_PER_PAGE = 100; // GitHub max
 const MAX_PAGES_TO_FETCH = 3; // Limit to avoid excessive API calls
 const MAX_GITHUB_PAGE = 10; // GitHub Code Search limit (1000 results / 100 per page)
+const MAX_LIMIT = 30; // Maximum number of results per request
 
 /**
  * Parse and validate cursor parameter
@@ -58,7 +59,7 @@ function parseCursor(cursor: string | null): {
  * Search Edge Function
  *
  * Possible API errors:
- * - 400: Missing/empty query, invalid cursor format, filter evaluation error
+ * - 400: Missing/empty query, invalid cursor format, invalid limit, filter evaluation error
  * - 401: Missing Authorization header, GitHub token not found
  * - 500: Unexpected internal errors
  */
@@ -83,6 +84,14 @@ Deno.serve(async (req) => {
     // Validate query
     if (!query || query.trim() === "") {
       throw new ApiError(400, "Query parameter is required");
+    }
+
+    // Validate limit
+    if (isNaN(limit) || limit < 1 || limit > MAX_LIMIT) {
+      throw new ApiError(
+        400,
+        `Invalid limit parameter. Must be between 1 and ${MAX_LIMIT}.`,
+      );
     }
 
     // Get authorization header
