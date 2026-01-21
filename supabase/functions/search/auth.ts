@@ -2,12 +2,12 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "./errors.ts";
 
 /**
- * Initialize Supabase client with authorization header
+ * Initialize Supabase client with service_role key and authorization header
  */
 export function createSupabaseClient(authHeader: string): SupabaseClient {
   return createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     {
       global: {
         headers: { Authorization: authHeader },
@@ -17,12 +17,13 @@ export function createSupabaseClient(authHeader: string): SupabaseClient {
 }
 
 /**
- * Get GitHub OAuth token from authenticated user
+ * Get GitHub OAuth token from Supabase Vault
  * @throws {ApiError} 401 if user is not authenticated or token is missing
  */
 export async function getGitHubToken(
   supabaseClient: SupabaseClient,
 ): Promise<string> {
+  // Verify user authentication
   const {
     data: { user },
     error: userError,
@@ -31,17 +32,24 @@ export async function getGitHubToken(
   if (userError || !user) {
     throw new ApiError(
       401,
-      "GitHub OAuth token not found. Please re-authenticate.",
+      "Unauthorized. Please sign in with GitHub.",
     );
   }
 
-  const token = user.user_metadata?.provider_token;
-  if (!token) {
+  // Retrieve token from Vault
+  const secretName = `github_token_${user.id}`;
+  const { data, error } = await supabaseClient
+    .from("vault.decrypted_secrets")
+    .select("decrypted_secret")
+    .eq("name", secretName)
+    .single();
+
+  if (error || !data) {
     throw new ApiError(
       401,
-      "GitHub OAuth token not found. Please re-authenticate.",
+      "GitHub token not found. Please re-authenticate with GitHub.",
     );
   }
 
-  return token;
+  return data.decrypted_secret;
 }

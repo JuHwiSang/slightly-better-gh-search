@@ -105,44 +105,79 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 
 ### Environment Variables
 
-| Variable                   | Description                          | Required      | Example                                             |
-| -------------------------- | ------------------------------------ | ------------- | --------------------------------------------------- |
-| `SUPABASE_URL`             | Supabase project URL                 | ✅ Yes (auto) | `https://xxx.supabase.co`                           |
-| `SUPABASE_ANON_KEY`        | Supabase anonymous key               | ✅ Yes (auto) | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
-| `ALLOWED_ORIGINS`          | Comma-separated allowed CORS origins | ✅ Yes        | `https://your-app.vercel.app,http://localhost:5173` |
-| `UPSTASH_REDIS_REST_URL`   | Upstash Redis REST API URL           | ✅ Yes        | `https://xxx.upstash.io`                            |
-| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST API token         | ✅ Yes        | `AXXXaaaBBBcccDDD...`                               |
-| `CACHE_TTL_SECONDS`        | Cache TTL in seconds                 | ❌ No         | `86400` (default: 24h)                              |
+| Variable                    | Description                           | Required      | Example                                             |
+| --------------------------- | ------------------------------------- | ------------- | --------------------------------------------------- |
+| `SUPABASE_URL`              | Supabase project URL                  | ✅ Yes (auto) | `https://xxx.supabase.co`                           |
+| `SUPABASE_ANON_KEY`         | Supabase anonymous key                | ✅ Yes (auto) | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (for Vault) | ✅ Yes        | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
+| `ALLOWED_ORIGINS`           | Comma-separated allowed CORS origins  | ✅ Yes        | `https://your-app.vercel.app,http://localhost:5173` |
+| `UPSTASH_REDIS_REST_URL`    | Upstash Redis REST API URL            | ✅ Yes        | `https://xxx.upstash.io`                            |
+| `UPSTASH_REDIS_REST_TOKEN`  | Upstash Redis REST API token          | ✅ Yes        | `AXXXaaaBBBcccDDD...`                               |
+| `CACHE_TTL_SECONDS`         | Cache TTL in seconds                  | ❌ No         | `86400` (default: 24h)                              |
 
 > **Note**: `SUPABASE_URL` and `SUPABASE_ANON_KEY` are automatically provided by
 > Supabase runtime.
 
+> **Important**: `SUPABASE_SERVICE_ROLE_KEY` is required for Edge Functions to
+> access Supabase Vault for secure GitHub token storage. This key should never
+> be exposed to the client.
+
 ### Development Setup
 
-1. Create `supabase/.env` file:
+1. Create `.env.local` file in project root for SvelteKit:
    ```bash
+   PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   ```
+
+2. Create `supabase/.env` file for Edge Functions:
+   ```bash
+   # Service role key for Vault access
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+   # CORS
    ALLOWED_ORIGINS=http://localhost:5173
+
+   # Redis Cache
    UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
    UPSTASH_REDIS_REST_TOKEN=your-token
+
+   # (Optional) Cache TTL
+   CACHE_TTL_SECONDS=86400
    ```
 
-2. Run Supabase locally:
+3. Run Supabase locally:
    ```bash
    supabase start
-   supabase functions serve search --env-file supabase/.env
+   supabase functions serve --env-file supabase/.env
    ```
 
-### Deployment (GitHub Actions)
+### Deployment (Supabase CLI)
 
-1. Go to GitHub repository → Settings → Secrets and variables → Actions
-2. Add repository secret:
-   - `SUPABASE_ACCESS_TOKEN`: Your Supabase access token
-3. Add environment variables in Supabase Dashboard:
-   - Project Settings → Edge Functions → Environment Variables
-   - Add `ALLOWED_ORIGINS` with production domain
-   - Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
-   - (Optional) Add `CACHE_TTL_SECONDS` to customize cache duration
-4. Push to `main` branch (GitHub Actions will auto-deploy)
+1. Set environment secrets using Supabase CLI:
+   ```bash
+   # Set service role key (required for Vault)
+   supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+   # Set CORS origins
+   supabase secrets set ALLOWED_ORIGINS=https://your-app.vercel.app
+
+   # Set Redis credentials
+   supabase secrets set UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
+   supabase secrets set UPSTASH_REDIS_REST_TOKEN=your-token
+
+   # (Optional) Set cache TTL
+   supabase secrets set CACHE_TTL_SECONDS=86400
+
+   # Verify secrets
+   supabase secrets list
+   ```
+
+2. Deploy Edge Functions:
+   ```bash
+   supabase functions deploy search
+   supabase functions deploy store-token
+   ```
 
 ---
 

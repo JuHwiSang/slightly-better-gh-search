@@ -4,6 +4,232 @@
 
 ---
 
+## 2026-01-21 (Afternoon)
+
+### GitHub Provider Token Vault Storage
+
+#### Overview
+
+- **변경사항**: GitHub OAuth `provider_token`을 Supabase Vault에 안전하게 저장
+  및 조회
+- **목적**: TRB-003, TRB-004에서 확인한 provider_token 획득 및 저장 방법 구현
+- **주요 구현**:
+  - 새 Edge Function `store-token` 생성
+  - `search` function의 인증 로직을 Vault 기반으로 리팩토링
+  - OAuth callback에서 provider_token 추출 및 저장
+  - 모든 Edge Functions를 `service_role` 키 사용으로 전환
+
+#### Implementation Details
+
+**1. 새 Edge Function: `store-token`**
+(`supabase/functions/store-token/index.ts`):
+
+- **목적**: OAuth callback에서 호출되어 `provider_token`을 Vault에 저장
+- **인증**: Authorization 헤더로 사용자 JWT 검증
+- **요청 형식**:
+  ```typescript
+  POST /functions/v1/store-token
+  Authorization: Bearer {access_token}
+  {
+    "provider_token": "gho_xxxxx"
+  }
+  ```
+- **저장 로직**:
+  1. `service_role` 키로 Supabase 클라이언트 초기화
+  2. JWT에서 사용자 ID 추출
+  3. Secret name 생성: `github_token_{user_id}`
+  4. `vault.decrypted_secrets`에서 기존 토큰 확인
+  5. 존재하면 `vault.secrets` UPDATE, 없으면 INSERT
+- **에러 처리**:
+  - 400: `provider_token` 누락 또는 잘못된 형식
+  - 401: Authorization 헤더 누락 또는 잘못된 JWT
+  - 500: Vault 저장 실패
+
+**2. Search Function 인증 리팩토링** (`supabase/functions/search/auth.ts`):
+
+**Before**:
+
+```typescript
+// SUPABASE_ANON_KEY 사용
+export function createSupabaseClient(authHeader: string): SupabaseClient {
+  return createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    { global: { headers: { Authorization: authHeader } } },
+  );
+}
+
+// user_metadata에서 토큰 조회 (작동하지 않음)
+export async function getGitHubToken(
+  supabaseClient: SupabaseClient,
+): Promise<string> {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const token = user.user_metadata?.provider_token; // ❌ undefined
+  return token;
+}
+```
+
+**After**:
+
+```typescript
+// SUPABASE_SERVICE_ROLE_KEY 사용
+export function createSupabaseClient(authHeader: string): SupabaseClient {
+  return createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { global: { headers: { Authorization: authHeader } } },
+  );
+}
+
+// Vault에서 토큰 조회
+export async function getGitHubToken(
+  supabaseClient: SupabaseClient,
+): Promise<string> {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  const secretName = `github_token_${user.id}`;
+  const { data, error } = await supabaseClient
+    .from("vault.decrypted_secrets")
+    .select("decrypted_secret")
+    .eq("name", secretName)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(
+      401,
+      "GitHub token not found. Please re-authenticate with GitHub.",
+    );
+  }
+
+  return data.decrypted_secret;
+}
+```
+
+**3. OAuth Callback 수정** (`src/routes/auth/callback/+server.ts`):
+
+**Before**:
+
+```typescript
+const { error } = await supabase.auth.exchangeCodeForSession(code);
+if (!error) {
+  // provider_token을 저장하지 않음
+  throw redirect(307, nextUrl.pathname + nextUrl.search);
+}
+```
+
+**After**:
+
+```typescript
+const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+if (!error && data.session) {
+  // provider_token 추출 (오직 여기서만 가능)
+  const providerToken = data.session.provider_token;
+
+  if (providerToken) {
+    // store-token Edge Function 호출
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/store-token`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${data.session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ provider_token: providerToken }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to store GitHub token:", await response.json());
+      }
+    } catch (storeError) {
+      console.error("Error storing GitHub token:", storeError);
+    }
+  }
+
+  throw redirect(307, nextUrl.pathname + nextUrl.search);
+}
+```
+
+**주요 변경사항**:
+
+- `exchangeCodeForSession()` 반환값에서 `data` 추출
+- `data.session.provider_token` 획득 (TRB-003에서 확인한 유일한 방법)
+- 토큰 저장 실패 시 에러 로그만 출력 (사용자 리다이렉트는 계속 진행)
+
+#### Environment Variables
+
+**신규 환경변수**: `SUPABASE_SERVICE_ROLE_KEY`
+
+**로컬 개발** (`.env.local`):
+
+```bash
+# Supabase Configuration
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+
+# Edge Functions (service_role key for Vault access)
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# CORS
+ALLOWED_ORIGINS=http://localhost:5173
+
+# Redis Cache
+UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token
+```
+
+**배포** (Supabase CLI):
+
+```bash
+# Service role key 설정
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# 설정 확인
+supabase secrets list
+
+# Edge Functions 배포
+supabase functions deploy search
+supabase functions deploy store-token
+```
+
+#### Security Considerations
+
+1. **`service_role` 키 사용**:
+   - Vault 접근을 위해 필수
+   - Authorization 헤더로 사용자 인증을 수행하므로 안전
+   - 클라이언트에 노출되지 않음 (Edge Function 내부에서만 사용)
+
+2. **토큰 저장 실패 처리**:
+   - 토큰 저장 실패 시에도 사용자 리다이렉트는 계속 진행
+   - 에러 로그만 출력 (사용자 경험 방해 최소화)
+   - 다음 로그인 시 재시도 가능
+
+3. **Vault 보안**:
+   - 자동 암호화/복호화
+   - `service_role` 키로만 접근 가능
+   - 클라이언트에서 직접 접근 불가
+
+#### Files Created
+
+- `supabase/functions/store-token/index.ts` - 새 Edge Function
+- `.env.example` - 환경변수 템플릿
+
+#### Files Modified
+
+- `supabase/functions/search/auth.ts` - Vault 기반 토큰 조회
+- `src/routes/auth/callback/+server.ts` - 토큰 저장 로직 추가
+- `README.md` - 환경변수 문서화
+
+#### Next Steps
+
+- [ ] 로컬 환경에서 OAuth 플로우 테스트
+- [ ] Vault에 토큰 저장 확인
+- [ ] Search function에서 Vault 토큰 조회 확인
+- [ ] 에러 케이스 테스트 (토큰 없을 때)
+- [ ] GEMINI.md 패턴 추가
+
+---
+
 ## 2026-01-21 (Early Morning)
 
 ### Error Handling Refactoring with ApiError Class

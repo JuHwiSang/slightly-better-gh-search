@@ -173,6 +173,79 @@ if (!query) {
 }
 ```
 
+### GitHub OAuth Token Storage
+
+```typescript
+// ✅ Extract provider_token in OAuth callback (ONLY available here)
+const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+if (!error && data.session) {
+  const providerToken = data.session.provider_token; // ✅ Only here!
+
+  // Store in Vault via Edge Function
+  await fetch(`${supabaseUrl}/functions/v1/store-token`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${data.session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ provider_token: providerToken }),
+  });
+}
+
+// ❌ Don't try to get provider_token from getSession() or user_metadata
+const { data: { session } } = await supabase.auth.getSession();
+const token = session?.provider_token; // ❌ undefined
+const token2 = user.user_metadata?.provider_token; // ❌ undefined
+```
+
+### Supabase Vault Access
+
+```typescript
+// ✅ Use service_role key for Vault access in Edge Functions
+const supabaseClient = createClient(
+  Deno.env.get("SUPABASE_URL") ?? "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", // ✅ service_role
+  {
+    global: {
+      headers: { Authorization: authHeader }, // User JWT for auth
+    },
+  },
+);
+
+// ✅ Store token in Vault (upsert pattern)
+const secretName = `github_token_${user.id}`;
+const { data: existing } = await supabaseClient
+  .from("vault.decrypted_secrets")
+  .select("id, name")
+  .eq("name", secretName)
+  .single();
+
+if (existing) {
+  // Update
+  await supabaseClient
+    .from("vault.secrets")
+    .update({ secret: providerToken })
+    .eq("id", existing.id);
+} else {
+  // Insert
+  await supabaseClient
+    .from("vault.secrets")
+    .insert({ name: secretName, secret: providerToken });
+}
+
+// ✅ Retrieve token from Vault
+const { data, error } = await supabaseClient
+  .from("vault.decrypted_secrets")
+  .select("decrypted_secret")
+  .eq("name", secretName)
+  .single();
+
+const githubToken = data.decrypted_secret;
+
+// ❌ Don't use anon key for Vault access
+const client = createClient(url, ANON_KEY); // ❌ Can't access Vault
+```
+
 ---
 
 ## Common Mistakes
