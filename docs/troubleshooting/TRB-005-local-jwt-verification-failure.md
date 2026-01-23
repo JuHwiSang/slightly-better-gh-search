@@ -57,23 +57,51 @@ Received an instance of Uint8Array
 
 ## ✅ 해결 방법 (Workaround)
 
-### 테스트용
+### 구현된 해결책
 
-`--no-verify-jwt` 플래그를 사용하여 JWT 검증 우회:
+#### 1. package.json 수정
 
-```bash
-supabase functions serve --no-verify-jwt
+`test:supabase:serve` 스크립트에 `--no-verify-jwt` 플래그 추가:
+
+```json
+"test:supabase:serve": "supabase functions serve --env-file supabase/.env.test --no-verify-jwt"
 ```
 
-### 검증 전략
+#### 2. Ping Function 생성
 
-1. 간단한 ping/pong Edge Function 생성
-2. 원격 Supabase 인스턴스에 배포
-3. 원격 배포가 정상 작동하는지 확인
-4. 확인 후 로컬에서 `--no-verify-jwt` 사용
+`supabase/functions/ping/index.ts`에 간단한 ping/pong 엔드포인트 구현:
+
+```typescript
+Deno.serve(() => {
+  return new Response(JSON.stringify({ message: "pong" }), {
+    headers: { "Content-Type": "application/json" },
+  });
+});
+```
+
+#### 3. 검증 전략
+
+1. **로컬 테스트**: `pnpm test:supabase:serve`로 `--no-verify-jwt` 플래그와 함께
+   실행
+2. **원격 배포**: ping function을 원격 Supabase 인스턴스에 배포
+3. **프로덕션 검증**: 원격 배포가 JWT 검증과 함께 정상 작동하는지 확인
+4. **로컬 개발 계속**: 확인 후 로컬에서 `--no-verify-jwt` 사용
+
+### 사용 방법
+
+```bash
+# Edge Function 서버 시작 (JWT 검증 우회)
+pnpm test:supabase:serve
+
+# 테스트 실행
+pnpm test:supabase
+
+# 또는 ping 엔드포인트 직접 호출
+curl http://127.0.0.1:54321/functions/v1/ping
+```
 
 > **⚠️ 주의**: `--no-verify-jwt`는 인증 검사를 비활성화함. 로컬 개발 환경에서만
-> 사용할 것.
+> 사용할 것. 프로덕션 배포 시에는 자동으로 JWT 검증이 활성화됨.
 
 ## 관련 이슈
 

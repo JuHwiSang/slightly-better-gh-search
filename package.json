@@ -13,7 +13,7 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"test:supabase": "deno test --allow-net --allow-env --env-file=supabase/.env.test --config=supabase/functions/deno.json supabase/functions/**/*_test.ts",
-		"test:supabase:serve": "supabase functions serve --env-file supabase/.env.test",
+		"test:supabase:serve": "supabase functions serve --env-file supabase/.env.test --no-verify-jwt",
 		"test:supabase:watch": "deno test --allow-net --allow-env --env-file=supabase/.env.test --config=supabase/functions/deno.json --watch supabase/functions/**/*_test.ts"
 	},
 	"devDependencies": {

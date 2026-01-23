@@ -4,6 +4,91 @@
 
 ---
 
+## 2026-01-24 (Early Morning)
+
+### Local JWT Verification Workaround Implementation
+
+#### Overview
+
+- **변경사항**: 로컬 Edge Function JWT 검증 실패 문제에 대한 workaround 구현
+- **목적**: TRB-005에서 확인한 로컬 JWT 검증 버그에 대한 실용적인 해결 방법 적용
+- **주요 구현**:
+  - `package.json`에 `--no-verify-jwt` 플래그 추가
+  - 간단한 ping/pong Edge Function 생성
+  - TRB-005 문서 업데이트
+
+#### Implementation Details
+
+**1. package.json 수정**:
+
+- **변경 내용**: `test:supabase:serve` 스크립트에 `--no-verify-jwt` 플래그 추가
+- **Before**:
+  ```json
+  "test:supabase:serve": "supabase functions serve --env-file supabase/.env.test"
+  ```
+- **After**:
+  ```json
+  "test:supabase:serve": "supabase functions serve --env-file supabase/.env.test --no-verify-jwt"
+  ```
+- **이유**: 로컬 개발 환경에서 GoTrue와 Edge Function Runtime 간의 JWT 알고리즘
+  불일치(ES256 vs HS256) 문제 우회
+
+**2. Ping Function 생성** (`supabase/functions/ping/index.ts`):
+
+- **목적**: Edge Function 배포 및 JWT 검증 테스트용 최소 엔드포인트
+- **구현**:
+  ```typescript
+  Deno.serve(() => {
+    return new Response(JSON.stringify({ message: "pong" }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  ```
+- **특징**:
+  - 요청 본문 파싱 불필요 (GET 요청만으로 테스트 가능)
+  - 인증 불필요 (JWT 검증 자체를 테스트하기 위함)
+  - 즉시 응답 반환
+
+**3. TRB-005 문서 업데이트**:
+
+- **섹션 추가**: "구현된 해결책" 섹션으로 workaround를 구체화
+- **내용**:
+  1. `package.json` 수정 사항
+  2. Ping Function 구현 코드
+  3. 검증 전략 (로컬 테스트 → 원격 배포 → 프로덕션 검증)
+  4. 사용 방법 (`pnpm test:supabase:serve`, `pnpm test:supabase`)
+- **강조사항**: 프로덕션 배포 시 자동으로 JWT 검증 활성화됨
+
+#### Verification Strategy
+
+1. **로컬 테스트**: `pnpm test:supabase:serve`로 `--no-verify-jwt`와 함께 실행
+2. **원격 배포**: ping function을 실제 Supabase 인스턴스에 배포
+3. **프로덕션 검증**: 원격 배포에서 JWT 검증이 정상 작동하는지 확인
+4. **로컬 개발 계속**: 확인 후 로컬 개발은 `--no-verify-jwt` 사용
+
+#### Security Notes
+
+- `--no-verify-jwt`는 **로컬 개발 환경에서만** 사용
+- 프로덕션 배포 시에는 자동으로 JWT 검증 활성화
+- Ping function은 인증이 필요 없는 공개 엔드포인트 (테스트 목적만)
+
+#### Files Created
+
+- `supabase/functions/ping/index.ts` - 테스트용 ping/pong 엔드포인트
+
+#### Files Modified
+
+- `package.json` - `--no-verify-jwt` 플래그 추가
+- `docs/troubleshooting/TRB-005-local-jwt-verification-failure.md` - 구현
+  세부사항 추가
+
+#### Related Issues
+
+- [supabase/cli#4524](https://github.com/supabase/cli/issues/4524) - 업스트림
+  해결 대기 중
+
+---
+
 ## 2026-01-21 (Evening)
 
 ### Centralized Configuration with SearchConfig Class
