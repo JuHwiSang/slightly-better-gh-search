@@ -1,5 +1,5 @@
 [functions.search]
-import_map = "./functions/deno.json"
+# import_map = "./functions/deno.json"
 enabled = true
 verify_jwt = true
 # Uncomment to specify a custom file path to the entrypoint.
@@ -10,7 +10,7 @@ entrypoint = "./functions/search/index.ts"
 # static_files = [ "./functions/search/*.html" ]
 
 [functions.store-token]
-import_map = "./functions/deno.json"
+# import_map = "./functions/deno.json"
 enabled = true
 verify_jwt = true
 # Uncomment to specify a custom file path to the entrypoint.
@@ -23,7 +23,7 @@ entrypoint = "./functions/store-token/index.ts"
 [functions.ping]
 enabled = true
 verify_jwt = true
-import_map = "./functions/deno.json"
+# import_map = "./functions/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/ping/index.ts"
