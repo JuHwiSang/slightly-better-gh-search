@@ -1,45 +1,44 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@supabase/functions-js@^0.0.0-automated": "0.0.0-jsr-test.1",
-    "jsr:@supabase/supabase-js@2": "2.90.1",
-    "npm:@supabase/auth-js@2.90.1": "2.90.1",
-    "npm:@supabase/postgrest-js@2.90.1": "2.90.1",
-    "npm:@supabase/realtime-js@2.90.1": "2.90.1",
-    "npm:@supabase/storage-js@2.90.1": "2.90.1",
+    "jsr:@std/assert@1": "1.0.17",
+    "jsr:@std/internal@^1.0.12": "1.0.12",
+    "npm:@supabase/supabase-js@2": "2.91.0",
     "npm:@upstash/redis@1.34.3": "1.34.3",
     "npm:filtrex@^3.1.0": "3.1.0"
   },
   "jsr": {
-    "@supabase/functions-js@0.0.0-jsr-test.1": {
-      "integrity": "b1b37924af1f0011b4753201e1585a37b030e996c6682492e02575eb27d902b2"
-    },
-    "@supabase/supabase-js@2.90.1": {
-      "integrity": "16258ad7a106f9fa284d4966289743ae2e00e78af3f0b7b07c9155885e9c613c",
+    "@std/assert@1.0.17": {
+      "integrity": "df5ebfffe77c03b3fa1401e11c762cc8f603d51021c56c4d15a8c7ab45e90dbe",
       "dependencies": [
-        "jsr:@supabase/functions-js",
-        "npm:@supabase/auth-js",
-        "npm:@supabase/postgrest-js",
-        "npm:@supabase/realtime-js",
-        "npm:@supabase/storage-js"
+        "jsr:@std/internal"
       ]
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
     }
   },
   "npm": {
-    "@supabase/auth-js@2.90.1": {
-      "integrity": "sha512-vxb66dgo6h3yyPbR06735Ps+dK3hj0JwS8w9fdQPVZQmocSTlKUW5MfxSy99mN0XqCCuLMQ3jCEiIIUU23e9ng==",
+    "@supabase/auth-js@2.91.0": {
+      "integrity": "sha512-9ywvsKLsxTwv7fvN5fXzP3UfRreqrX2waylTBDu0lkmeHXa8WtSQS9e0WV9FBduiazYqQbgfBQXBNPRPsRgWOQ==",
       "dependencies": [
         "tslib"
       ]
     },
-    "@supabase/postgrest-js@2.90.1": {
-      "integrity": "sha512-jh6vqzaYzoFn3raaC0hcFt9h+Bt+uxNRBSdc7PfToQeRGk7PDPoweHsbdiPWREtDVTGKfu+PyPW9e2jbK+BCgQ==",
+    "@supabase/functions-js@2.91.0": {
+      "integrity": "sha512-WaakXOqLK1mLtBNFXp5o5T+LlI6KZuADSeXz+9ofPRG5OpVSvW148LVJB1DRZ16Phck1a0YqIUswOUgxCz6vMw==",
       "dependencies": [
         "tslib"
       ]
     },
-    "@supabase/realtime-js@2.90.1": {
-      "integrity": "sha512-PWbnEMkcQRuor8jhObp4+Snufkq8C6fBp+MchVp2qBPY1NXk/c3Iv3YyiFYVzo0Dzuw4nAlT4+ahuPggy4r32w==",
+    "@supabase/postgrest-js@2.91.0": {
+      "integrity": "sha512-5S41zv2euNpGucvtM4Wy+xOmLznqt/XO+Lh823LOFEQ00ov7QJfvqb6VzIxufvzhooZpmGR0BxvMcJtWxCIFdQ==",
+      "dependencies": [
+        "tslib"
+      ]
+    },
+    "@supabase/realtime-js@2.91.0": {
+      "integrity": "sha512-u2YuJFG35umw8DO9beC27L/jYXm3KhF+73WQwbynMpV0tXsFIA0DOGRM0NgRyy03hJIdO6mxTTwe8efW3yx3Tg==",
       "dependencies": [
         "@types/phoenix",
         "@types/ws",
@@ -47,15 +46,25 @@
         "ws"
       ]
     },
-    "@supabase/storage-js@2.90.1": {
-      "integrity": "sha512-GHY+Ps/K/RBfRj7kwx+iVf2HIdqOS43rM2iDOIDpapyUnGA9CCBFzFV/XvfzznGykd//z2dkGZhlZZprsVFqGg==",
+    "@supabase/storage-js@2.91.0": {
+      "integrity": "sha512-CI7fsVIBQHfNObqU9kmyQ1GWr+Ug44y4rSpvxT4LdQB9tlhg1NTBov6z7Dlmt8d6lGi/8a9lf/epCDxyWI792g==",
       "dependencies": [
         "iceberg-js",
         "tslib"
       ]
     },
-    "@types/node@25.0.9": {
-      "integrity": "sha512-/rpCXHlCWeqClNBwUhDcusJxXYDjZTyE8v5oTO7WbL8eij2nKhUeU89/6xgjU7N4/Vh3He0BtyhJdQbDyhiXAw==",
+    "@supabase/supabase-js@2.91.0": {
+      "integrity": "sha512-Rjb0QqkKrmXMVwUOdEqysPBZ0ZDZakeptTkUa6k2d8r3strBdbWVDqjOdkCjAmvvZMtXecBeyTyMEXD1Zzjfvg==",
+      "dependencies": [
+        "@supabase/auth-js",
+        "@supabase/functions-js",
+        "@supabase/postgrest-js",
+        "@supabase/realtime-js",
+        "@supabase/storage-js"
+      ]
+    },
+    "@types/node@25.0.10": {
+      "integrity": "sha512-zWW5KPngR/yvakJgGOmZ5vTBemDoSqF3AcV/LrO5u5wTWyEAVVh+IT39G4gtyAkh3CtTZs8aX/yRM82OfzHJRg==",
       "dependencies": [
         "undici-types"
       ]
@@ -96,8 +105,9 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@supabase/functions-js@2",
-      "jsr:@supabase/supabase-js@2",
+      "jsr:@std/assert@1",
+      "npm:@supabase/functions-js@2",
+      "npm:@supabase/supabase-js@2",
       "npm:@upstash/redis@1.34.3",
       "npm:filtrex@^3.1.0"
     ]

@@ -88,7 +88,7 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 
 2. Start dev server:
    ```bash
-   npm run dev
+   pnpm dev
    ```
 
 ### Deployment (Vercel)
@@ -105,19 +105,20 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 
 ### Environment Variables
 
-| Variable                        | Description                           | Required      | Example                                             |
-| ------------------------------- | ------------------------------------- | ------------- | --------------------------------------------------- |
-| `SUPABASE_URL`                  | Supabase project URL                  | ✅ Yes (auto) | `https://xxx.supabase.co`                           |
-| `SUPABASE_ANON_KEY`             | Supabase anonymous key                | ✅ Yes (auto) | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
-| `SUPABASE_SERVICE_ROLE_KEY`     | Supabase service role key (for Vault) | ✅ Yes        | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
-| `ALLOWED_ORIGINS`               | Comma-separated allowed CORS origins  | ✅ Yes        | `https://your-app.vercel.app,http://localhost:5173` |
-| `UPSTASH_REDIS_REST_URL`        | Upstash Redis REST API URL            | ✅ Yes        | `https://xxx.upstash.io`                            |
-| `UPSTASH_REDIS_REST_TOKEN`      | Upstash Redis REST API token          | ✅ Yes        | `AXXXaaaBBBcccDDD...`                               |
-| `CACHE_TTL_CODE_SEARCH_SECONDS` | Cache TTL for code search results     | ❌ No         | `3600` (default: 1h)                                |
-| `CACHE_TTL_REPOSITORY_SECONDS`  | Cache TTL for repository metadata     | ❌ No         | `86400` (default: 24h)                              |
+| Variable                        | Description                           | Required     | Example                                             |
+| ------------------------------- | ------------------------------------- | ------------ | --------------------------------------------------- |
+| `SUPABASE_URL`                  | Supabase project URL                  | ❌ No (auto) | `https://xxx.supabase.co`                           |
+| `SUPABASE_ANON_KEY`             | Supabase anonymous key                | ❌ No (auto) | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Supabase service role key (for Vault) | ❌ No (auto) | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`           |
+| `ALLOWED_ORIGINS`               | Comma-separated allowed CORS origins  | ✅ Yes       | `https://your-app.vercel.app,http://localhost:5173` |
+| `UPSTASH_REDIS_REST_URL`        | Upstash Redis REST API URL            | ✅ Yes       | `https://xxx.upstash.io`                            |
+| `UPSTASH_REDIS_REST_TOKEN`      | Upstash Redis REST API token          | ✅ Yes       | `AXXXaaaBBBcccDDD...`                               |
+| `CACHE_TTL_CODE_SEARCH_SECONDS` | Cache TTL for code search results     | ❌ No        | `3600` (default: 1h)                                |
+| `CACHE_TTL_REPOSITORY_SECONDS`  | Cache TTL for repository metadata     | ❌ No        | `86400` (default: 24h)                              |
 
-> **Note**: `SUPABASE_URL` and `SUPABASE_ANON_KEY` are automatically provided by
-> Supabase runtime.
+> **Note**: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`
+> are automatically provided by the Supabase runtime and do not need to be
+> manually configured in production secrets.
 
 > **Important**: `SUPABASE_SERVICE_ROLE_KEY` is required for Edge Functions to
 > access Supabase Vault for secure GitHub token storage. This key should never
@@ -133,8 +134,8 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 
 2. Create `supabase/.env` file for Edge Functions:
    ```bash
-   # Service role key for Vault access
-   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   # Service role key (Auto-injected by CLI during serve, but can be set for explicit access)
+   # SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
    # CORS
    ALLOWED_ORIGINS=http://localhost:5173
@@ -150,36 +151,109 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 
 3. Run Supabase locally:
    ```bash
-   supabase start
-   supabase functions serve --env-file supabase/.env
+   pnpm supabase start
+   pnpm supabase functions serve --env-file supabase/.env
    ```
+
+### Testing
+
+E2E tests for Edge Functions run against a local Supabase instance.
+
+#### Prerequisites
+
+1. Start local Supabase:
+
+   ```bash
+   pnpm supabase start
+   ```
+
+2. Get service role key from the output (or run `pnpm supabase status`):
+   - **`Authentication Keys - Secret`** is your **`SUPABASE_SERVICE_ROLE_KEY`**.
+   - **`Authentication Keys - Publishable`** is your **`SUPABASE_ANON_KEY`**.
+   - `Project URL` is your `SUPABASE_URL`.
+
+3. Create `supabase/.env.test` from template:
+
+   ```bash
+   cp supabase/.env.test.example supabase/.env.test
+   ```
+
+4. Fill in `supabase/.env.test`:
+   - `SUPABASE_URL`: Use `http://127.0.0.1:54321` (local)
+   - `SUPABASE_ANON_KEY`: Copy `Publishable` key from start output
+   - `SUPABASE_SERVICE_ROLE_KEY`: Copy `Secret` key from start output
+   - `TEST_GITHUB_TOKEN`: Your GitHub Personal Access Token
+   - `UPSTASH_REDIS_REST_URL`: Your Upstash Redis URL
+   - `UPSTASH_REDIS_REST_TOKEN`: Your Upstash Redis token
+
+#### Running Tests
+
+1. Start local Supabase in Terminal A:
+   ```bash
+   pnpm supabase start
+   ```
+
+2. Start serving Edge Functions in Terminal B:
+   ```bash
+   pnpm test:supabase:serve
+   ```
+
+3. Run tests in Terminal C:
+   ```bash
+   pnpm test:supabase
+   ```
+
+Alternatively, you can run specific tests or use watch mode:
+
+```bash
+# Run tests in watch mode
+pnpm test:supabase:watch
+
+# Run specific test file
+deno test --allow-net --allow-env --env-file=supabase/.env.test --config=supabase/functions/deno.json supabase/functions/search/index_test.ts
+```
+
+#### Test Coverage
+
+- **store-token**: User creation, token storage/update, Vault integration
+- **search**: GitHub API integration, filtering, pagination, caching, error
+  handling
+
+#### Cleanup
+
+Tests automatically clean up created users and Vault secrets. If tests fail
+mid-execution, you may need to manually clean up:
+
+```bash
+# Reset local Supabase
+pnpm supabase db reset
+```
 
 ### Deployment (Supabase CLI)
 
 1. Set environment secrets using Supabase CLI:
    ```bash
-   # Set service role key (required for Vault)
-   supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   # (Note: SUPABASE_SERVICE_ROLE_KEY is auto-injected, no need to set)
 
    # Set CORS origins
-   supabase secrets set ALLOWED_ORIGINS=https://your-app.vercel.app
+   pnpm supabase secrets set ALLOWED_ORIGINS=https://your-app.vercel.app
 
    # Set Redis credentials
-   supabase secrets set UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
-   supabase secrets set UPSTASH_REDIS_REST_TOKEN=your-token
+   pnpm supabase secrets set UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
+   pnpm supabase secrets set UPSTASH_REDIS_REST_TOKEN=your-token
 
    # (Optional) Set cache TTL
-   supabase secrets set CACHE_TTL_CODE_SEARCH_SECONDS=3600
-   supabase secrets set CACHE_TTL_REPOSITORY_SECONDS=86400
+   pnpm supabase secrets set CACHE_TTL_CODE_SEARCH_SECONDS=3600
+   pnpm supabase secrets set CACHE_TTL_REPOSITORY_SECONDS=86400
 
    # Verify secrets
-   supabase secrets list
+   pnpm supabase secrets list
    ```
 
 2. Deploy Edge Functions:
    ```bash
-   supabase functions deploy search
-   supabase functions deploy store-token
+   pnpm supabase functions deploy search
+   pnpm supabase functions deploy store-token
    ```
 
 ---
@@ -195,14 +269,14 @@ Enhanced GitHub Code Search with custom filtering capabilities.
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Start SvelteKit dev server
-npm run dev
+pnpm dev
 
 # Start Supabase locally (optional)
-supabase start
-supabase functions serve search
+pnpm supabase start
+pnpm supabase functions serve search
 ```
 
 ### Project Structure

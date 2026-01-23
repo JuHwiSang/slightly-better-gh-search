@@ -3,18 +3,28 @@ import { ApiError } from "./errors.ts";
 import { config } from "./config.ts";
 
 /**
- * Initialize Supabase client with service_role key and authorization header
+ * Create a Supabase client for a specific role
  */
-export function createSupabaseClient(authHeader: string): SupabaseClient {
-  return createClient(
-    config.supabase.url,
-    config.supabase.serviceRoleKey,
-    {
-      global: {
-        headers: { Authorization: authHeader },
-      },
+function createBaseClient(key: string, authHeader?: string): SupabaseClient {
+  return createClient(config.supabase.url, key, {
+    global: {
+      headers: authHeader ? { Authorization: authHeader } : {},
     },
-  );
+  });
+}
+
+/**
+ * Initialize Supabase client with anon key and authorization header for user verification
+ */
+export function createAnonClient(authHeader: string): SupabaseClient {
+  return createBaseClient(config.supabase.anonKey, authHeader);
+}
+
+/**
+ * Initialize Supabase client with service_role key for administrative tasks
+ */
+export function createAdminClient(): SupabaseClient {
+  return createBaseClient(config.supabase.serviceRoleKey);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient, createAnonClient } from "../search/auth.ts";
 import { generateCorsHeaders, parseCorsConfig } from "../search/cors.ts";
 import { ApiError } from "../search/errors.ts";
 
@@ -29,26 +29,20 @@ Deno.serve(async (req) => {
       throw new ApiError(401, "Missing authorization header");
     }
 
-    // Initialize Supabase client with service_role key
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      },
-    );
-
-    // Verify user authentication
+    // 1. Verify user identity using least-privilege (anon) client
+    // This avoids local JWT verification bugs in Deno
+    const anonClient = createAnonClient(authHeader);
     const {
       data: { user },
       error: userError,
-    } = await supabaseClient.auth.getUser();
+    } = await anonClient.auth.getUser();
 
     if (userError || !user) {
       throw new ApiError(401, "Invalid token");
     }
+
+    // 2. Initialize admin client for Vault operations
+    const adminClient = createAdminClient();
 
     // Parse request body
     const body = await req.json();
@@ -65,7 +59,7 @@ Deno.serve(async (req) => {
     const secretName = `github_token_${user.id}`;
 
     // Check if token already exists
-    const { data: existing } = await supabaseClient
+    const { data: existing } = await adminClient
       .from("vault.decrypted_secrets")
       .select("id, name")
       .eq("name", secretName)
@@ -73,7 +67,7 @@ Deno.serve(async (req) => {
 
     if (existing) {
       // Update existing token
-      const { error: updateError } = await supabaseClient
+      const { error: updateError } = await adminClient
         .from("vault.secrets")
         .update({ secret: providerToken })
         .eq("id", existing.id);
@@ -86,7 +80,7 @@ Deno.serve(async (req) => {
       }
     } else {
       // Insert new token
-      const { error: insertError } = await supabaseClient
+      const { error: insertError } = await adminClient
         .from("vault.secrets")
         .insert({
           name: secretName,

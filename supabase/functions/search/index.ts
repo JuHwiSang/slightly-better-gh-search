@@ -2,7 +2,7 @@ import { evaluateFilter } from "./filter.ts";
 import type { SearchResponse, SearchResultItem } from "./types.ts";
 import { createRedisClient } from "./cache.ts";
 import { generateCorsHeaders, parseCorsConfig } from "./cors.ts";
-import { createSupabaseClient, getGitHubToken } from "./auth.ts";
+import { createAnonClient, getGitHubToken } from "./auth.ts";
 import { fetchCodeSearch, fetchRepositories } from "./github.ts";
 import { ApiError } from "./errors.ts";
 import { config } from "./config.ts";
@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
     }
 
     // Initialize Supabase client and get GitHub token
-    const supabaseClient = createSupabaseClient(authHeader);
+    const supabaseClient = createAnonClient(authHeader);
     const githubToken = await getGitHubToken(supabaseClient);
 
     // Initialize Redis client (null if not configured)

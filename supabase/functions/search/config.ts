@@ -29,6 +29,7 @@ export class SearchConfig {
   // Supabase 설정
   readonly supabase: {
     readonly url: string;
+    readonly anonKey: string;
     readonly serviceRoleKey: string;
   };
 
@@ -69,14 +70,17 @@ export class SearchConfig {
       },
     };
 
-    // Supabase 설정 (환경변수 + validation)
     this.supabase = {
       url: this.validateRequired(
         Deno.env.get("SUPABASE_URL"),
         "SUPABASE_URL",
       ),
+      anonKey: this.validateRequired(
+        Deno.env.get("SUPABASE_ANON_KEY"),
+        "SUPABASE_ANON_KEY",
+      ),
       serviceRoleKey: this.validateRequired(
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), // Auto-provided by runtime
         "SUPABASE_SERVICE_ROLE_KEY",
       ),
     };
