@@ -222,10 +222,6 @@ export function callEdgeFunction(
     headers["Authorization"] = `Bearer ${options.accessToken}`;
   }
 
-  console.log("url", url.toString());
-  console.log("apiKey", headers["apikey"]);
-  console.log("Authorization", headers["Authorization"]);
-
   return fetch(url.toString(), {
     method: options.method || "GET",
     headers,

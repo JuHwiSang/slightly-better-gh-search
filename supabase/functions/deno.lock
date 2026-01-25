@@ -1,6 +1,8 @@
 {
   "version": "4",
   "specifiers": {
+    "jsr:@std/assert@1": "1.0.17",
+    "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@supabase/functions-js@*": "2.92.0",
     "npm:@supabase/supabase-js@2": "2.91.0",
     "npm:@upstash/redis@1.34.3": "1.34.3",
@@ -8,6 +10,15 @@
     "npm:openai@^4.52.5": "4.104.0"
   },
   "jsr": {
+    "@std/assert@1.0.17": {
+      "integrity": "df5ebfffe77c03b3fa1401e11c762cc8f603d51021c56c4d15a8c7ab45e90dbe",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    },
     "@supabase/functions-js@2.92.0": {
       "integrity": "8b72ff85c14f96114500632e94156870f8a58b4173116e5102533cb5b1b13eae",
       "dependencies": [
