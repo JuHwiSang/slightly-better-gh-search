@@ -115,7 +115,8 @@ export async function cleanupVaultSecret(secretName: string): Promise<void> {
   const adminClient = createAdminClient();
 
   // Use custom RPC function for deletion (public schema)
-  const { error } = await adminClient.rpc("public.delete_secret_by_name", {
+  // Note: adminClient defaults to public schema, so we call the function directly
+  const { error } = await adminClient.rpc("delete_secret_by_name", {
     secret_name: secretName,
   });
 

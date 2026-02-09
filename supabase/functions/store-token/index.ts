@@ -1,4 +1,4 @@
-import { createAdminClient, createAnonClient } from "../search/auth.ts";
+import { createAnonClient, createVaultAdminClient } from "../search/auth.ts";
 import { generateCorsHeaders, parseCorsConfig } from "../search/cors.ts";
 import { ApiError } from "../search/errors.ts";
 
@@ -41,8 +41,8 @@ Deno.serve(async (req) => {
       throw new ApiError(401, "Invalid token");
     }
 
-    // 2. Initialize admin client for Vault operations
-    const adminClient = createAdminClient();
+    // 2. Initialize vault admin client for Vault operations
+    const vaultClient = createVaultAdminClient();
 
     // Parse request body
     const body = await req.json();
@@ -59,8 +59,7 @@ Deno.serve(async (req) => {
     const secretName = `github_token_${user.id}`;
 
     // Check if token already exists
-    const { data: existing } = await adminClient
-      .schema("vault")
+    const { data: existing } = await vaultClient
       .from("decrypted_secrets")
       .select("id")
       .eq("name", secretName)
@@ -68,8 +67,8 @@ Deno.serve(async (req) => {
 
     if (existing) {
       // Update existing token using RPC function
-      const { error: updateError } = await adminClient.rpc(
-        "vault.update_secret",
+      const { error: updateError } = await vaultClient.rpc(
+        "update_secret",
         {
           id: existing.id,
           secret: providerToken,
@@ -84,8 +83,8 @@ Deno.serve(async (req) => {
       }
     } else {
       // Insert new token using RPC function
-      const { error: insertError } = await adminClient.rpc(
-        "vault.create_secret",
+      const { error: insertError } = await vaultClient.rpc(
+        "create_secret",
         {
           secret: providerToken,
           name: secretName,
