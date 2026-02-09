@@ -109,6 +109,22 @@ export async function createTestUser(): Promise<TestUser> {
 }
 
 /**
+ * Delete a Vault secret using a custom RPC function.
+ */
+export async function cleanupVaultSecret(secretName: string): Promise<void> {
+  const adminClient = createAdminClient();
+
+  // Use custom RPC function for deletion (public schema)
+  const { error } = await adminClient.rpc("public.delete_secret_by_name", {
+    secret_name: secretName,
+  });
+
+  if (error) {
+    console.warn(`Failed to cleanup secret ${secretName}:`, error);
+  }
+}
+
+/**
  * Delete test user and associated Vault secrets
  */
 export async function cleanupTestUser(userId: string): Promise<void> {
@@ -116,21 +132,7 @@ export async function cleanupTestUser(userId: string): Promise<void> {
 
   // Delete Vault secret
   const secretName = `github_token_${userId}`;
-
-  // First, get the secret ID from the view
-  const { data: secret } = await adminClient
-    .from("vault.decrypted_secrets")
-    .select("id")
-    .eq("name", secretName)
-    .single();
-
-  // Delete from vault.secrets table using the ID
-  if (secret) {
-    await adminClient
-      .from("vault.secrets")
-      .delete()
-      .eq("id", secret.id);
-  }
+  await cleanupVaultSecret(secretName);
 
   // Delete user
   const { error } = await adminClient.auth.admin.deleteUser(userId);

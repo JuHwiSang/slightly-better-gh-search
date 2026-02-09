@@ -4,6 +4,174 @@
 
 ---
 
+## 2026-02-04 (Evening)
+
+### Vault 쓰기 작업을 RPC 함수로 전환
+
+#### Overview
+
+- **변경사항**: Vault 쓰기 작업(INSERT/UPDATE)을 RPC 함수 방식으로 전환
+- **목적**: TRB-007에서 확인한
+  `permission denied for function _crypto_aead_det_noncegen` 오류 해결
+- **주요 변경**:
+  - 읽기: `vault.decrypted_secrets` 뷰 계속 사용 (권한 문제 없음)
+  - 쓰기: `vault.create_secret()`, `vault.update_secret()` RPC 함수 사용
+  - 삭제: 커스텀 RPC 함수 `vault.delete_secret_by_name()` 생성
+
+#### Implementation Details
+
+**1. SQL RPC 함수 생성**
+(`supabase/migrations/20260208091616_add_vault_delete_function.sql`):
+
+```sql
+CREATE OR REPLACE FUNCTION public.delete_secret_by_name(secret_name text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  secret_id uuid;
+BEGIN
+  SELECT id INTO secret_id
+  FROM vault.decrypted_secrets
+  WHERE name = secret_name
+  LIMIT 1;
+  
+  IF secret_id IS NOT NULL THEN
+    DELETE FROM vault.secrets WHERE id = secret_id;
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION vault.delete_secret_by_name(text) TO service_role;
+```
+
+- **목적**: 테스트 cleanup을 위한 삭제 함수 (Vault에는 기본 제공되지 않음)
+- **보안**: `SECURITY DEFINER`와 `service_role` 권한으로 제한
+
+**2. store-token/index.ts 수정** (Lines 62-98):
+
+읽기와 쓰기 분리:
+
+```typescript
+// ✅ 읽기: vault.decrypted_secrets 뷰 사용
+const { data: existing } = await adminClient
+  .schema("vault")
+  .from("decrypted_secrets")
+  .select("id")
+  .eq("name", secretName)
+  .maybeSingle(); // .single() → .maybeSingle()
+
+if (existing) {
+  // ✅ 쓰기: RPC 함수 사용
+  await adminClient.rpc("vault.update_secret", {
+    id: existing.id,
+    secret: providerToken,
+  });
+} else {
+  // ✅ 쓰기: RPC 함수 사용
+  await adminClient.rpc("vault.create_secret", {
+    secret: providerToken,
+    name: secretName,
+  });
+}
+```
+
+**3. test_utils.ts 수정** (Lines 109-119):
+
+기존의 `SELECT` → `DELETE` 로직을 커스텀 RPC 함수로 대체:
+
+```typescript
+export async function cleanupVaultSecret(secretName: string): Promise<void> {
+  const adminClient = createAdminClient();
+
+  // Use custom RPC function for deletion (public schema)
+  const { error } = await adminClient.rpc("public.delete_secret_by_name", {
+    secret_name: secretName,
+  });
+
+  if (error) {
+    console.warn(`Failed to cleanup secret ${secretName}:`, error);
+  }
+}
+```
+
+**4. auth.ts 수정** (Line 57):
+
+더 안전한 에러 핸들링을 위해 `.single()` → `.maybeSingle()` 변경:
+
+```typescript
+const { data, error } = await supabaseClient
+  .schema("vault")
+  .from("decrypted_secrets")
+  .select("decrypted_secret")
+  .eq("name", secretName)
+  .maybeSingle(); // ✅ 변경
+```
+
+**5. index_test.ts 수정** (Lines 49, 102):
+
+테스트 검증 로직도 `.single()` → `.maybeSingle()` 변경
+
+#### Rationale
+
+**문제**:
+
+- Supabase Vault의 `vault.secrets` 테이블에 직접 `INSERT`/`UPDATE` 시 권한 오류
+  발생
+- `permission denied for function _crypto_aead_det_noncegen` 에러
+- TRB-007에서 확인한 바로는 Vault 표준 방식이 RPC 함수 사용으로 변경됨
+
+**해결**:
+
+- **읽기**: `vault.decrypted_secrets` 뷰는 권한 문제 없이 사용 가능 → 그대로
+  유지
+- **쓰기**: `vault.create_secret()`, `vault.update_secret()` RPC 함수 사용 필수
+- **삭제**: `vault` 스키마에 함수 생성 불가 → `public` 스키마에 커스텀 함수 생성
+  - `public.delete_secret_by_name()` 함수 생성
+  - `SECURITY DEFINER SET search_path = public, vault`로 안전하게 vault 접근
+  - PUBLIC/anon/authenticated 권한 REVOKE, service_role만 GRANT
+
+**보안**:
+
+- `public` 스키마에 함수 생성하되, 모든 기본 권한 제거
+- `SECURITY DEFINER`로 함수가 정의자 권한으로 실행
+- `search_path` 설정으로 vault 테이블 안전하게 접근
+- `service_role` 키로만 실행 가능
+- Edge Function 내부에서만 사용되므로 안전
+
+#### Files Created
+
+- `supabase/migrations/20260208091616_add_vault_delete_function.sql` - 커스텀
+  삭제 RPC 함수
+
+#### Files Modified
+
+- `supabase/functions/store-token/index.ts` - INSERT/UPDATE를 RPC 함수로 변경
+- `supabase/functions/search/auth.ts` - `.single()` → `.maybeSingle()` 변경
+- `supabase/functions/test_utils.ts` - DELETE를 커스텀 RPC 함수로 변경
+- `supabase/functions/store-token/index_test.ts` - `.single()` →
+  `.maybeSingle()` 변경
+- `GEMINI.md` - Supabase Vault Access 섹션 업데이트 (RPC 함수 패턴)
+- `docs/DEV_LOG.md` - 이 항목 추가
+
+#### Next Steps
+
+- [ ] Migration 적용: `pnpm supabase db reset` (로컬) 또는
+      `pnpm supabase db push` (원격)
+  - 💡 Tip: `db reset`으로 안 될 경우 `pnpm supabase stop` 후
+    `pnpm supabase start` 재시작 실행
+- [ ] 로컬 테스트: `pnpm test:supabase` 실행
+- [ ] 권한 오류 해결 확인
+- [ ] TRB-004 문서 업데이트 (구현 예제를 RPC 함수 방식으로 변경)
+
+#### Related
+
+- TRB-007 - Vault 권한 문제 트러블슈팅
+- [Supabase Vault 공식 문서](https://supabase.com/docs/guides/database/vault)
+
+---
+
 ## 2026-01-24 (Early Morning)
 
 ### Local JWT Verification Workaround Implementation

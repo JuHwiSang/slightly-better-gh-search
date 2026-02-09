@@ -42,10 +42,11 @@ Deno.test("store-token: should store GitHub token for authenticated user", async
     const secretName = `github_token_${testUser.id}`;
 
     const { data: vaultData, error: vaultError } = await adminClient
-      .from("vault.decrypted_secrets")
+      .schema("vault")
+      .from("decrypted_secrets")
       .select("decrypted_secret, name")
       .eq("name", secretName)
-      .single();
+      .maybeSingle();
 
     assertEquals(vaultError, null, "Should retrieve token from Vault");
     assertExists(vaultData, "Token should exist in Vault");
@@ -94,10 +95,11 @@ Deno.test("store-token: should update existing GitHub token", async () => {
     const secretName = `github_token_${testUser.id}`;
 
     const { data: vaultData, error: vaultError } = await adminClient
-      .from("vault.decrypted_secrets")
+      .schema("vault")
+      .from("decrypted_secrets")
       .select("decrypted_secret")
       .eq("name", secretName)
-      .single();
+      .maybeSingle();
 
     assertEquals(vaultError, null);
     assertEquals(vaultData?.decrypted_secret, secondToken);

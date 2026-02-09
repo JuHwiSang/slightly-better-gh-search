@@ -201,49 +201,48 @@ const token2 = user.user_metadata?.provider_token; // ❌ undefined
 ### Supabase Vault Access
 
 ```typescript
-// ✅ Use service_role key for Vault access in Edge Functions
-const supabaseClient = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", // ✅ service_role
-  {
-    global: {
-      headers: { Authorization: authHeader }, // User JWT for auth
-    },
-  },
-);
+// ✅ 읽기: vault.decrypted_secrets 뷰 사용
+// ✅ 쓰기: vault.create_secret(), vault.update_secret() RPC 함수 사용
+import { createAdminClient } from "./auth.ts";
 
-// ✅ Store token in Vault (upsert pattern)
+const adminClient = createAdminClient();
 const secretName = `github_token_${user.id}`;
-const { data: existing } = await supabaseClient
-  .from("vault.decrypted_secrets")
-  .select("id, name")
-  .eq("name", secretName)
-  .single();
+
+// Upsert pattern: 읽기 → 쓰기 분리
+const { data: existing } = await adminClient
+  .schema('vault')
+  .from('decrypted_secrets') // ✅ 읽기: 뷰 사용
+  .select('id')
+  .eq('name', secretName)
+  .maybeSingle();
 
 if (existing) {
-  // Update
-  await supabaseClient
-    .from("vault.secrets")
-    .update({ secret: providerToken })
-    .eq("id", existing.id);
+  // ✅ 쓰기: RPC 함수
+  await adminClient.rpc('vault.update_secret', {
+    id: existing.id,
+    secret: providerToken
+  });
 } else {
-  // Insert
-  await supabaseClient
-    .from("vault.secrets")
-    .insert({ name: secretName, secret: providerToken });
+  // ✅ 쓰기: RPC 함수
+  await adminClient.rpc('vault.create_secret', {
+    secret: providerToken,
+    name: secretName
+  });
 }
 
-// ✅ Retrieve token from Vault
-const { data, error } = await supabaseClient
-  .from("vault.decrypted_secrets")
-  .select("decrypted_secret")
-  .eq("name", secretName)
-  .single();
+// ✅ 읽기: 뷰 사용
+const { data } = await adminClient
+  .schema('vault')
+  .from('decrypted_secrets')
+  .select('decrypted_secret')
+  .eq('name', secretName)
+  .maybeSingle();
 
-const githubToken = data.decrypted_secret;
+const githubToken = data?.decrypted_secret;
 
-// ❌ Don't use anon key for Vault access
-const client = createClient(url, ANON_KEY); // ❌ Can't access Vault
+// ❌ Don't use direct INSERT/UPDATE on vault.secrets
+await adminClient.schema('vault').from('secrets').insert(...); // ❌ Permission error
+await adminClient.schema('vault').from('secrets').update(...); // ❌ Permission error
 ```
 
 ---

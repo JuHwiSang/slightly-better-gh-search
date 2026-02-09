@@ -60,17 +60,21 @@ Deno.serve(async (req) => {
 
     // Check if token already exists
     const { data: existing } = await adminClient
-      .from("vault.decrypted_secrets")
-      .select("id, name")
+      .schema("vault")
+      .from("decrypted_secrets")
+      .select("id")
       .eq("name", secretName)
-      .single();
+      .maybeSingle();
 
     if (existing) {
-      // Update existing token
-      const { error: updateError } = await adminClient
-        .from("vault.secrets")
-        .update({ secret: providerToken })
-        .eq("id", existing.id);
+      // Update existing token using RPC function
+      const { error: updateError } = await adminClient.rpc(
+        "vault.update_secret",
+        {
+          id: existing.id,
+          secret: providerToken,
+        },
+      );
 
       if (updateError) {
         throw new ApiError(
@@ -79,13 +83,14 @@ Deno.serve(async (req) => {
         );
       }
     } else {
-      // Insert new token
-      const { error: insertError } = await adminClient
-        .from("vault.secrets")
-        .insert({
-          name: secretName,
+      // Insert new token using RPC function
+      const { error: insertError } = await adminClient.rpc(
+        "vault.create_secret",
+        {
           secret: providerToken,
-        });
+          name: secretName,
+        },
+      );
 
       if (insertError) {
         throw new ApiError(
