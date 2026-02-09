@@ -141,11 +141,12 @@ Deno.test("store-token: should return 401 when using invalid token", async () =>
 
 Deno.test("store-token: should return 400 when missing provider_token", async () => {
   let testUser: TestUser | null = null;
+  let response: Response | null = null;
 
   try {
     testUser = await createTestUser();
 
-    const response = await callEdgeFunction("store-token", {
+    response = await callEdgeFunction("store-token", {
       method: "POST",
       accessToken: testUser.accessToken,
       body: {}, // Missing provider_token

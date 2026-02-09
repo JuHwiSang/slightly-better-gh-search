@@ -48,7 +48,11 @@ export function isRedisConfigured(): boolean {
  */
 export function createAdminClient(): SupabaseClient {
   const env = getTestEnv();
-  return createClient(env.supabaseUrl, env.serviceRoleKey);
+  return createClient(env.supabaseUrl, env.serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+    },
+  });
 }
 
 /**
@@ -56,7 +60,11 @@ export function createAdminClient(): SupabaseClient {
  */
 export function createAnonClient(): SupabaseClient {
   const env = getTestEnv();
-  return createClient(env.supabaseUrl, env.anonKey);
+  return createClient(env.supabaseUrl, env.anonKey, {
+    auth: {
+      autoRefreshToken: false,
+    },
+  });
 }
 
 /**
