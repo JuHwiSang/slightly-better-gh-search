@@ -23,6 +23,12 @@ export function createRedisClient(): Redis | null {
     return new Redis({
       url: config.redis.url!,
       token: config.redis.token!,
+      retry: {
+        retries: 0,
+      },
+      config: {
+        signal: AbortSignal.timeout(2000), // 2초 넘으면 그냥 실패 처리
+      },
     });
   } catch (error) {
     console.error("Failed to initialize Redis client:", error);
