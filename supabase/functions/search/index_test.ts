@@ -26,17 +26,19 @@ async function setupTestUserWithToken(): Promise<TestUser> {
     body: { provider_token: env.githubToken },
   });
   await assertResponseOk(response, "Failed to store token during setup");
+  await response.json(); // Consume response body
 
   return testUser;
 }
 
 Deno.test("search: should perform basic search", async () => {
   let testUser: TestUser | null = null;
+  let response: Response | null = null;
 
   try {
     testUser = await setupTestUserWithToken();
 
-    const response = await callEdgeFunction("search", {
+    response = await callEdgeFunction("search", {
       accessToken: testUser.accessToken,
       searchParams: {
         query: "language:typescript",
@@ -48,6 +50,9 @@ Deno.test("search: should perform basic search", async () => {
     const data = await response.json();
 
     // Verify response structure
+
+    console.log(data);
+
     assertExists(data.items);
     assertEquals(Array.isArray(data.items), true);
     assertExists(data.total_count);
@@ -55,6 +60,9 @@ Deno.test("search: should perform basic search", async () => {
     assertEquals(typeof data.hasMore, "boolean");
     assertEquals(typeof data.incomplete_results, "boolean");
   } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -63,11 +71,12 @@ Deno.test("search: should perform basic search", async () => {
 
 Deno.test("search: should apply filter expression", async () => {
   let testUser: TestUser | null = null;
+  let response: Response | null = null;
 
   try {
     testUser = await setupTestUserWithToken();
 
-    const response = await callEdgeFunction("search", {
+    response = await callEdgeFunction("search", {
       accessToken: testUser.accessToken,
       searchParams: {
         query: "react",
@@ -93,6 +102,9 @@ Deno.test("search: should apply filter expression", async () => {
       );
     }
   } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -101,12 +113,14 @@ Deno.test("search: should apply filter expression", async () => {
 
 Deno.test("search: should support pagination with cursor", async () => {
   let testUser: TestUser | null = null;
+  let firstResponse: Response | null = null;
+  let secondResponse: Response | null = null;
 
   try {
     testUser = await setupTestUserWithToken();
 
     // First page
-    const firstResponse = await callEdgeFunction("search", {
+    firstResponse = await callEdgeFunction("search", {
       accessToken: testUser.accessToken,
       searchParams: {
         query: "javascript",
@@ -121,7 +135,7 @@ Deno.test("search: should support pagination with cursor", async () => {
 
     // If there's a next cursor, fetch next page
     if (firstData.nextCursor) {
-      const secondResponse = await callEdgeFunction("search", {
+      secondResponse = await callEdgeFunction("search", {
         accessToken: testUser.accessToken,
         searchParams: {
           query: "javascript",
@@ -153,6 +167,12 @@ Deno.test("search: should support pagination with cursor", async () => {
       );
     }
   } finally {
+    if (firstResponse && !firstResponse.bodyUsed) {
+      await firstResponse.body?.cancel();
+    }
+    if (secondResponse && !secondResponse.bodyUsed) {
+      await secondResponse.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -161,11 +181,12 @@ Deno.test("search: should support pagination with cursor", async () => {
 
 Deno.test("search: should return text_matches for highlighting", async () => {
   let testUser: TestUser | null = null;
+  let response: Response | null = null;
 
   try {
     testUser = await setupTestUserWithToken();
 
-    const response = await callEdgeFunction("search", {
+    response = await callEdgeFunction("search", {
       accessToken: testUser.accessToken,
       searchParams: {
         query: "function",
@@ -190,6 +211,9 @@ Deno.test("search: should return text_matches for highlighting", async () => {
       );
     }
   } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -198,11 +222,12 @@ Deno.test("search: should return text_matches for highlighting", async () => {
 
 Deno.test("search: should return 400 when query is missing", async () => {
   let testUser: TestUser | null = null;
+  let response: Response | null = null;
 
   try {
     testUser = await setupTestUserWithToken();
 
-    const response = await callEdgeFunction("search", {
+    response = await callEdgeFunction("search", {
       accessToken: testUser.accessToken,
       searchParams: {
         // No query
@@ -214,6 +239,9 @@ Deno.test("search: should return 400 when query is missing", async () => {
     const data = await response.json();
     assertExists(data.error);
   } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -222,11 +250,12 @@ Deno.test("search: should return 400 when query is missing", async () => {
 
 Deno.test("search: should return 400 when cursor format is invalid", async () => {
   let testUser: TestUser | null = null;
+  let response: Response | null = null;
 
   try {
     testUser = await setupTestUserWithToken();
 
-    const response = await callEdgeFunction("search", {
+    response = await callEdgeFunction("search", {
       accessToken: testUser.accessToken,
       searchParams: {
         query: "test",
@@ -238,6 +267,9 @@ Deno.test("search: should return 400 when cursor format is invalid", async () =>
     const data = await response.json();
     assertExists(data.error);
   } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -246,11 +278,12 @@ Deno.test("search: should return 400 when cursor format is invalid", async () =>
 
 Deno.test("search: should return 400 when filter expression is invalid", async () => {
   let testUser: TestUser | null = null;
+  let response: Response | null = null;
 
   try {
     testUser = await setupTestUserWithToken();
 
-    const response = await callEdgeFunction("search", {
+    response = await callEdgeFunction("search", {
       accessToken: testUser.accessToken,
       searchParams: {
         query: "test",
@@ -262,6 +295,9 @@ Deno.test("search: should return 400 when filter expression is invalid", async (
     const data = await response.json();
     assertExists(data.error);
   } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -269,26 +305,35 @@ Deno.test("search: should return 400 when filter expression is invalid", async (
 });
 
 Deno.test("search: should return 401 when missing authorization", async () => {
-  const response = await callEdgeFunction("search", {
-    // No accessToken
-    searchParams: {
-      query: "test",
-    },
-  });
+  let response: Response | null = null;
 
-  await assertResponseStatus(response, 401);
-  const data = await response.json();
-  assertExists(data.error);
+  try {
+    response = await callEdgeFunction("search", {
+      // No accessToken
+      searchParams: {
+        query: "test",
+      },
+    });
+
+    await assertResponseStatus(response, 401);
+    const data = await response.json();
+    assertExists(data.error);
+  } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
+  }
 });
 
 Deno.test("search: should return 401 when GitHub token not found in Vault", async () => {
   let testUser: TestUser | null = null;
+  let response: Response | null = null;
 
   try {
     // Create user but don't store GitHub token
     testUser = await createTestUser();
 
-    const response = await callEdgeFunction("search", {
+    response = await callEdgeFunction("search", {
       accessToken: testUser.accessToken,
       searchParams: {
         query: "test",
@@ -299,6 +344,9 @@ Deno.test("search: should return 401 when GitHub token not found in Vault", asyn
     const data = await response.json();
     assertExists(data.error);
   } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -309,6 +357,8 @@ Deno.test("search: should use cache when available", {
   ignore: !isRedisConfigured(),
 }, async () => {
   let testUser: TestUser | null = null;
+  let response1: Response | null = null;
+  let response2: Response | null = null;
 
   try {
     testUser = await setupTestUserWithToken();
@@ -319,16 +369,14 @@ Deno.test("search: should use cache when available", {
     };
 
     // First request - should fetch from GitHub and cache
-    const response1 = await callEdgeFunction("search", {
+    response1 = await callEdgeFunction("search", {
       accessToken: testUser.accessToken,
       searchParams,
     });
     await assertResponseOk(response1);
 
     // Second request - should be served from cache
-    // We can't easily verify cache hit from headers here unless we add them,
-    // but we can verify it still works.
-    const response2 = await callEdgeFunction("search", {
+    response2 = await callEdgeFunction("search", {
       accessToken: testUser.accessToken,
       searchParams,
     });
@@ -339,6 +387,12 @@ Deno.test("search: should use cache when available", {
 
     assertEquals(data1.items.length, data2.items.length);
   } finally {
+    if (response1 && !response1.bodyUsed) {
+      await response1.body?.cancel();
+    }
+    if (response2 && !response2.bodyUsed) {
+      await response2.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }

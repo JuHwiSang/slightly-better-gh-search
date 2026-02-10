@@ -16,6 +16,7 @@ import {
 
 Deno.test("store-token: should store GitHub token for authenticated user", async () => {
   let testUser: TestUser | null = null;
+  let response: Response | null = null;
 
   try {
     // Create test user
@@ -23,7 +24,7 @@ Deno.test("store-token: should store GitHub token for authenticated user", async
     const env = getTestEnv();
 
     // Call store-token function
-    const response = await callEdgeFunction("store-token", {
+    response = await callEdgeFunction("store-token", {
       method: "POST",
       accessToken: testUser.accessToken,
       body: {
@@ -53,7 +54,9 @@ Deno.test("store-token: should store GitHub token for authenticated user", async
     assertEquals(vaultData!.decrypted_secret, env.githubToken);
     assertEquals(vaultData!.name, secretName);
   } finally {
-    // Cleanup
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -62,6 +65,8 @@ Deno.test("store-token: should store GitHub token for authenticated user", async
 
 Deno.test("store-token: should update existing GitHub token", async () => {
   let testUser: TestUser | null = null;
+  let firstResponse: Response | null = null;
+  let response: Response | null = null;
 
   try {
     // Create test user
@@ -70,16 +75,17 @@ Deno.test("store-token: should update existing GitHub token", async () => {
 
     // Store initial token
     const firstToken = env.githubToken;
-    const firstResponse = await callEdgeFunction("store-token", {
+    firstResponse = await callEdgeFunction("store-token", {
       method: "POST",
       accessToken: testUser.accessToken,
       body: { provider_token: firstToken },
     });
     await assertResponseOk(firstResponse, "Failed to store initial token");
+    await firstResponse.json(); // Consume response body
 
     // Update with new token (use same token for testing, but simulate update)
     const secondToken = `${firstToken}_updated`;
-    const response = await callEdgeFunction("store-token", {
+    response = await callEdgeFunction("store-token", {
       method: "POST",
       accessToken: testUser.accessToken,
       body: { provider_token: secondToken },
@@ -104,7 +110,12 @@ Deno.test("store-token: should update existing GitHub token", async () => {
     assertEquals(vaultError, null);
     assertEquals(vaultData?.decrypted_secret, secondToken);
   } finally {
-    // Cleanup
+    if (firstResponse && !firstResponse.bodyUsed) {
+      await firstResponse.body?.cancel();
+    }
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -112,31 +123,47 @@ Deno.test("store-token: should update existing GitHub token", async () => {
 });
 
 Deno.test("store-token: should return 401 when missing authorization header", async () => {
-  const env = getTestEnv();
+  let response: Response | null = null;
 
-  const response = await callEdgeFunction("store-token", {
-    method: "POST",
-    // No accessToken
-    body: { provider_token: env.githubToken },
-  });
+  try {
+    const env = getTestEnv();
 
-  await assertResponseStatus(response, 401);
-  const data = await response.json();
-  assertExists(data.error);
+    response = await callEdgeFunction("store-token", {
+      method: "POST",
+      // No accessToken
+      body: { provider_token: env.githubToken },
+    });
+
+    await assertResponseStatus(response, 401);
+    const data = await response.json();
+    assertExists(data.error);
+  } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
+  }
 });
 
 Deno.test("store-token: should return 401 when using invalid token", async () => {
-  const env = getTestEnv();
+  let response: Response | null = null;
 
-  const response = await callEdgeFunction("store-token", {
-    method: "POST",
-    accessToken: "invalid-token-12345",
-    body: { provider_token: env.githubToken },
-  });
+  try {
+    const env = getTestEnv();
 
-  await assertResponseStatus(response, 401);
-  const data = await response.json();
-  assertExists(data.error);
+    response = await callEdgeFunction("store-token", {
+      method: "POST",
+      accessToken: "invalid-token-12345",
+      body: { provider_token: env.githubToken },
+    });
+
+    await assertResponseStatus(response, 401);
+    const data = await response.json();
+    assertExists(data.error);
+  } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
+  }
 });
 
 Deno.test("store-token: should return 400 when missing provider_token", async () => {
@@ -156,6 +183,9 @@ Deno.test("store-token: should return 400 when missing provider_token", async ()
     const data = await response.json();
     assertExists(data.error);
   } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
@@ -164,11 +194,12 @@ Deno.test("store-token: should return 400 when missing provider_token", async ()
 
 Deno.test("store-token: should return 400 when provider_token is not a string", async () => {
   let testUser: TestUser | null = null;
+  let response: Response | null = null;
 
   try {
     testUser = await createTestUser();
 
-    const response = await callEdgeFunction("store-token", {
+    response = await callEdgeFunction("store-token", {
       method: "POST",
       accessToken: testUser.accessToken,
       body: { provider_token: 12345 }, // Invalid type
@@ -178,6 +209,9 @@ Deno.test("store-token: should return 400 when provider_token is not a string", 
     const data = await response.json();
     assertExists(data.error);
   } finally {
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
     if (testUser) {
       await cleanupTestUser(testUser.id);
     }
