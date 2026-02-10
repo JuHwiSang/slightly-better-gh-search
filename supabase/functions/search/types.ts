@@ -9,9 +9,9 @@ export interface SearchRequest {
 
 export interface SearchResponse {
   items: SearchResultItem[];
-  nextCursor: string | null; // Format: "{page}:{index}"
-  totalCount: number;
-  hasMore: boolean;
+  next_cursor: string | null; // Format: "{page}:{index}"
+  total_count: number;
+  has_more: boolean;
   incomplete_results: boolean; // True if GitHub API timed out
 }
 

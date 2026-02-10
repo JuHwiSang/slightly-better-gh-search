@@ -345,6 +345,39 @@ for (const item of searchData.items) {
 }
 ```
 
+### API Response Naming
+
+```typescript
+// ✅ HTTP API responses use snake_case (consistent with GitHub API)
+export interface SearchResponse {
+  items: SearchResultItem[];
+  next_cursor: string | null; // snake_case
+  total_count: number; // snake_case
+  has_more: boolean; // snake_case
+  incomplete_results: boolean; // snake_case
+}
+
+// ✅ Internal variables use camelCase (TypeScript convention)
+let nextCursor: string | null = null;
+const totalCount = searchData.total_count;
+const hasMore = filteredItems.length >= limit;
+
+// ✅ Explicit mapping in response construction
+const response: SearchResponse = {
+  items: filteredItems,
+  next_cursor: nextCursor, // Map internal to external
+  total_count: totalCount,
+  has_more: hasMore,
+  incomplete_results: incompleteResults,
+};
+
+// ❌ Don't mix naming conventions in API responses
+export interface BadResponse {
+  nextCursor: string; // camelCase
+  incomplete_results: boolean; // snake_case - inconsistent!
+}
+```
+
 ---
 
 ## Common Mistakes

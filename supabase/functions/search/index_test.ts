@@ -57,7 +57,7 @@ Deno.test("search: should perform basic search", async () => {
     assertEquals(Array.isArray(data.items), true);
     assertExists(data.total_count);
     assertEquals(typeof data.total_count, "number");
-    assertEquals(typeof data.hasMore, "boolean");
+    assertEquals(typeof data.has_more, "boolean");
     assertEquals(typeof data.incomplete_results, "boolean");
   } finally {
     if (response && !response.bodyUsed) {
@@ -134,13 +134,13 @@ Deno.test("search: should support pagination with cursor", async () => {
     assertEquals(firstData.items.length > 0, true);
 
     // If there's a next cursor, fetch next page
-    if (firstData.nextCursor) {
+    if (firstData.next_cursor) {
       secondResponse = await callEdgeFunction("search", {
         accessToken: testUser.accessToken,
         searchParams: {
           query: "javascript",
           limit: "5",
-          cursor: firstData.nextCursor,
+          cursor: firstData.next_cursor,
         },
       });
 

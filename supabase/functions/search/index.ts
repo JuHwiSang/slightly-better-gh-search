@@ -244,9 +244,9 @@ Deno.serve(async (req) => {
     // Prepare response
     const response: SearchResponse = {
       items: filteredItems.slice(0, limit),
-      nextCursor,
-      totalCount,
-      hasMore: hasMore && filteredItems.length >= limit,
+      next_cursor: nextCursor,
+      total_count: totalCount,
+      has_more: hasMore && filteredItems.length >= limit,
       incomplete_results: incompleteResults,
     };
 

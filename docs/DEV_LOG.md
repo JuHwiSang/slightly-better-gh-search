@@ -4,6 +4,143 @@
 
 ---
 
+## 2026-02-10 (Late Evening)
+
+### API 응답 필드 네이밍을 snake_case로 통일
+
+#### Overview
+
+- **변경사항**: Supabase Edge Functions HTTP API 응답 필드를 snake_case로 통일
+- **목적**: GitHub API와의 일관성 확보 및 단일 네이밍 컨벤션 적용
+- **주요 변경**:
+  - `SearchResponse` 타입의 camelCase 필드 → snake_case 변경
+  - 응답 객체 생성 시 명시적 snake_case 매핑
+  - 모든 테스트 코드 업데이트
+
+#### Implementation Details
+
+**1. Type Definition 수정** (`supabase/functions/search/types.ts`):
+
+**Before**:
+
+```typescript
+export interface SearchResponse {
+  items: SearchResultItem[];
+  nextCursor: string | null; // camelCase
+  totalCount: number; // camelCase
+  hasMore: boolean; // camelCase
+  incomplete_results: boolean; // snake_case (GitHub API)
+}
+```
+
+**After**:
+
+```typescript
+export interface SearchResponse {
+  items: SearchResultItem[];
+  next_cursor: string | null; // snake_case
+  total_count: number; // snake_case
+  has_more: boolean; // snake_case
+  incomplete_results: boolean; // snake_case
+}
+```
+
+**2. Response Construction 수정** (`supabase/functions/search/index.ts`):
+
+**Before** (Lines 244-251):
+
+```typescript
+const response: SearchResponse = {
+  items: filteredItems.slice(0, limit),
+  nextCursor, // shorthand property
+  totalCount, // shorthand property
+  hasMore: hasMore && filteredItems.length >= limit,
+  incomplete_results: incompleteResults,
+};
+```
+
+**After**:
+
+```typescript
+const response: SearchResponse = {
+  items: filteredItems.slice(0, limit),
+  next_cursor: nextCursor, // explicit mapping
+  total_count: totalCount, // explicit mapping
+  has_more: hasMore && filteredItems.length >= limit,
+  incomplete_results: incompleteResults,
+};
+```
+
+**변경 이유**:
+
+- TypeScript 내부 변수는 camelCase 유지 (컨벤션 준수)
+- HTTP 응답 필드만 snake_case로 명시적 매핑
+- 코드 가독성 향상 (내부 vs 외부 구분 명확)
+
+**3. Test Code 수정** (`supabase/functions/search/index_test.ts`):
+
+**변경된 필드 접근**:
+
+- `data.hasMore` → `data.has_more` (line 60)
+- `firstData.nextCursor` → `firstData.next_cursor` (lines 137, 143)
+
+**영향받은 테스트**:
+
+- `search: should perform basic search` - has_more 타입 검증
+- `search: should support pagination with cursor` - next_cursor 접근
+
+#### Rationale
+
+**문제**:
+
+- 동일한 응답 객체 내에서 snake_case와 camelCase 혼재
+- GitHub API는 snake_case 사용 (`incomplete_results`, `total_count`)
+- 자체 필드는 camelCase 사용 (`nextCursor`, `hasMore`)
+- 일관성 부족으로 혼란 야기
+
+**해결**:
+
+1. **GitHub API와의 일관성**: 프록시 서비스의 특성상 동일한 컨벤션 채택
+2. **단일 스타일 유지**: API 응답 전체를 snake_case로 통일
+3. **REST API 모범 사례**: 많은 REST API 가이드가 snake_case 권장
+
+**적용 범위**:
+
+- ✅ Supabase Edge Functions HTTP 응답: snake_case
+- ❌ TypeScript 내부 코드: camelCase 유지 (관례 준수)
+- ❌ Frontend 코드: 이 변경의 범위 밖
+
+#### Files Created
+
+- `docs/adr/ADR-005-api-naming-convention.md` - 네이밍 컨벤션 결정 문서
+
+#### Files Modified
+
+- `supabase/functions/search/types.ts` - SearchResponse 필드명 변경
+- `supabase/functions/search/index.ts` - 응답 객체 생성 시 명시적 매핑
+- `supabase/functions/search/index_test.ts` - 테스트 코드 필드 접근 업데이트
+- `GEMINI.md` - API 응답 네이밍 패턴 추가
+- `docs/DEV_LOG.md` - 이 항목 추가
+
+#### Breaking Change
+
+⚠️ **Breaking Change**: 기존 클라이언트 코드에서 다음 필드명 변경 필요:
+
+- `nextCursor` → `next_cursor`
+- `totalCount` → `total_count`
+- `hasMore` → `has_more`
+
+#### Next Steps
+
+- [ ] Frontend 코드에서 필드명 업데이트 (별도 작업 필요)
+- [ ] API 문서 업데이트 (있는 경우)
+
+#### Related
+
+- ADR-005 - API 응답 필드 네이밍 컨벤션
+
+---
+
 ## 2026-02-10 (Evening)
 
 ### Redis 타임아웃 설정 및 테스트 리소스 누수 수정
