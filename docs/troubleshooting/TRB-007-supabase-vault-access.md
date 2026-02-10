@@ -68,11 +68,11 @@ Supabase Vault의 **접근 방식이 변경됨**. 과거에는 직접 테이블 
 ```typescript
 // 읽기는 뷰를 통해 가능
 const { data } = await supabaseClient
-    .schema("vault")
-    .from("decrypted_secrets")
-    .select("decrypted_secret")
-    .eq("name", secretName)
-    .maybeSingle();
+  .schema("vault")
+  .from("decrypted_secrets")
+  .select("decrypted_secret")
+  .eq("name", secretName)
+  .maybeSingle();
 
 const githubToken = data?.decrypted_secret;
 ```
@@ -81,33 +81,37 @@ const githubToken = data?.decrypted_secret;
 
 기본 제공되는 RPC 함수:
 
-- `vault.create_secret(name text, secret text)`: 새로운 시크릿 생성
-- `vault.update_secret(id uuid, secret text)`: 기존 시크릿 업데이트
+- `vault.create_secret(new_secret text, new_name text DEFAULT NULL, new_description text DEFAULT '', new_key_id uuid DEFAULT NULL)`
+- `vault.update_secret(secret_id uuid, new_secret text DEFAULT NULL, new_name text DEFAULT NULL, new_description text DEFAULT NULL, new_key_id uuid DEFAULT NULL)`
+
+> **⚠️ 중요**: 파라미터 이름이 직관적이지 않으므로 주의 필요
+>
+> - `create_secret`: `new_secret`, `new_name` 사용 (~~`secret`, `name`~~ 아님)
+> - `update_secret`: `secret_id`, `new_secret` 사용 (~~`id`, `secret`~~ 아님)
 
 ```typescript
 // Upsert 패턴: 읽기 → 쓰기 분리
 const secretName = `github_token_${user.id}`;
 
 // 1. 기존 시크릿 확인 (읽기: 뷰 사용)
-const { data: existing } = await supabaseClient
-    .schema("vault")
-    .from("decrypted_secrets")
-    .select("id")
-    .eq("name", secretName)
-    .maybeSingle();
+const { data: existing } = await vaultClient
+  .from("decrypted_secrets")
+  .select("id")
+  .eq("name", secretName)
+  .maybeSingle();
 
 if (existing) {
-    // 2-a. 업데이트 (쓰기: RPC 함수)
-    await supabaseClient.rpc("vault.update_secret", {
-        id: existing.id,
-        secret: providerToken,
-    });
+  // 2-a. 업데이트 (쓰기: RPC 함수)
+  await vaultClient.rpc("update_secret", {
+    secret_id: existing.id, // ✅ secret_id (NOT id)
+    new_secret: providerToken, // ✅ new_secret (NOT secret)
+  });
 } else {
-    // 2-b. 생성 (쓰기: RPC 함수)
-    await supabaseClient.rpc("vault.create_secret", {
-        secret: providerToken,
-        name: secretName,
-    });
+  // 2-b. 생성 (쓰기: RPC 함수)
+  await vaultClient.rpc("create_secret", {
+    new_secret: providerToken, // ✅ new_secret (NOT secret)
+    new_name: secretName, // ✅ new_name (NOT name)
+  });
 }
 ```
 
