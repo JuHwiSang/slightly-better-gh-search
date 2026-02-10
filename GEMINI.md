@@ -245,6 +245,106 @@ await adminClient.schema('vault').from('secrets').insert(...); // ❌ Permission
 await adminClient.schema('vault').from('secrets').update(...); // ❌ Permission error
 ```
 
+### Deno Test Response Cleanup
+
+```typescript
+// ✅ Declare response variables at top, cleanup in finally
+Deno.test("test name", async () => {
+  let testUser: TestUser | null = null;
+  let response: Response | null = null;
+  let firstResponse: Response | null = null; // For multiple responses
+  
+  try {
+    testUser = await setupTestUserWithToken();
+    
+    response = await callEdgeFunction("search", { ... });
+    await assertResponseOk(response);
+    const data = await response.json(); // Body consumed
+    
+    // ... assertions ...
+  } finally {
+    // ✅ Cleanup all responses
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
+    if (firstResponse && !firstResponse.bodyUsed) {
+      await firstResponse.body?.cancel();
+    }
+    if (testUser) {
+      await cleanupTestUser(testUser.id);
+    }
+  }
+});
+
+// ❌ Don't forget to cleanup response bodies
+Deno.test("bad test", async () => {
+  const response = await callEdgeFunction("search", { ... });
+  const data = await response.json();
+  // Missing finally block - will cause resource leak
+});
+```
+
+### Redis Client Configuration
+
+```typescript
+// ✅ Configure timeout and retry for fast fallback
+import { Redis } from "@upstash/redis";
+
+export function createRedisClient(): Redis | null {
+  if (!config.isRedisEnabled) {
+    console.warn("Redis credentials not configured. Caching disabled.");
+    return null;
+  }
+
+  try {
+    return new Redis({
+      url: config.redis.url!,
+      token: config.redis.token!,
+      retry: {
+        retries: 0, // Disable retry for fast fallback
+      },
+      config: {
+        signal: AbortSignal.timeout(2000), // 2 second timeout
+      },
+    });
+  } catch (error) {
+    console.error("Failed to initialize Redis client:", error);
+    return null;
+  }
+}
+
+// ❌ Don't use default timeout (very long)
+return new Redis({
+  url: config.redis.url!,
+  token: config.redis.token!,
+  // Missing timeout - will wait minutes on connection failure
+});
+```
+
+### Early Input Validation
+
+```typescript
+// ✅ Validate inputs BEFORE expensive operations
+// Validate filter expression early (before GitHub API calls)
+if (filter && filter.trim() !== "") {
+  const validation = validateFilter(filter);
+  if (!validation.valid) {
+    throw new ApiError(400, `Invalid filter expression: ${validation.error}`);
+  }
+}
+
+// Now make API calls
+const searchData = await fetchCodeSearch(...);
+
+// ❌ Don't validate after API calls
+const searchData = await fetchCodeSearch(...); // Expensive!
+for (const item of searchData.items) {
+  if (filter) {
+    evaluateFilter(filter, item); // May throw - wasted API call
+  }
+}
+```
+
 ---
 
 ## Common Mistakes
@@ -445,6 +545,6 @@ significant changes.
 
 ---
 
-_Last Updated: 2026-01-21_\
+_Last Updated: 2026-02-10_\
 _This file is optimized for AI consumption. Keep it concise and
 pattern-focused._

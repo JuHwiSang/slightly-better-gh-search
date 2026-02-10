@@ -4,6 +4,236 @@
 
 ---
 
+## 2026-02-10 (Evening)
+
+### Redis 타임아웃 설정 및 테스트 리소스 누수 수정
+
+#### Overview
+
+- **변경사항**: Redis 연결 실패 시 빠른 fallback을 위한 타임아웃 설정 추가 및
+  Deno 테스트 response body leak 수정
+- **목적**: 로컬 환경에서 Redis 연결 실패 시 긴 대기 시간 문제 해결 및 테스트
+  안정성 향상
+- **주요 구현**:
+  - Upstash Redis 클라이언트에 2초 타임아웃 및 재시도 비활성화
+  - 필터 validation을 GitHub API 호출 전으로 이동
+  - 모든 테스트에서 response body를 finally 블록에서 정리
+
+#### Implementation Details
+
+**1. Redis Client 타임아웃 설정** (`supabase/functions/search/cache.ts`):
+
+**Before**:
+
+```typescript
+export function createRedisClient(): Redis | null {
+  // ... validation ...
+
+  try {
+    return new Redis({
+      url: config.redis.url!,
+      token: config.redis.token!,
+    });
+  } catch (error) {
+    console.error("Failed to initialize Redis client:", error);
+    return null;
+  }
+}
+```
+
+**After**:
+
+```typescript
+export function createRedisClient(): Redis | null {
+  // ... validation ...
+
+  try {
+    return new Redis({
+      url: config.redis.url!,
+      token: config.redis.token!,
+      retry: {
+        retries: 0, // 재시도 비활성화
+      },
+      config: {
+        signal: AbortSignal.timeout(2000), // 2초 타임아웃
+      },
+    });
+  } catch (error) {
+    console.error("Failed to initialize Redis client:", error);
+    return null;
+  }
+}
+```
+
+**변경 이유**:
+
+- Redis 연결 실패 시 기본 타임아웃(매우 김)을 기다리지 않고 2초 후 즉시 GitHub
+  API로 fallback
+- 재시도를 비활성화하여 불필요한 대기 시간 제거
+- 테스트 실행 시간 단축 (1분+ → 2-3초)
+
+**2. Early Filter Validation** (`supabase/functions/search/index.ts`):
+
+**Before** (Lines 174-188):
+
+```typescript
+// GitHub API 호출 후 필터 평가
+while (...) {
+  const searchData = await fetchCodeSearch(...); // ⏱️ 느림
+  
+  for (const item of searchData.items) {
+    if (filter && filter.trim() !== "") {
+      try {
+        if (!evaluateFilter(filter, repoInfo)) {
+          continue; // 필터 불일치
+        }
+      } catch (error) {
+        throw new ApiError(400, `Filter evaluation error: ${errorMessage}`);
+      }
+    }
+    // ...
+  }
+}
+```
+
+**After** (Lines 120-131):
+
+```typescript
+// ✅ GitHub API 호출 전에 필터 검증
+// Validate filter expression early (before GitHub API calls)
+if (filter && filter.trim() !== "") {
+  const validation = validateFilter(filter);
+  if (!validation.valid) {
+    throw new ApiError(
+      400,
+      `Invalid filter expression: ${validation.error}`,
+    );
+  }
+}
+
+// 이제 GitHub API 호출
+const searchData = await fetchCodeSearch(...);
+```
+
+**변경 이유**:
+
+- 잘못된 필터 표현식일 경우 즉시 400 에러 반환
+- 불필요한 GitHub API 호출 및 Redis 연결 시도 방지
+- 테스트 실행 시간 단축 및 명확한 에러 메시지
+
+**3. Test Response Body Leak 수정**:
+
+**문제**: Deno의 resource sanitizer가 consume되지 않은 fetch response body를
+감지:
+
+```
+error: Leaks detected:
+  - A fetch response body was created during the test, but not consumed during the test.
+    Consume or close the response body `ReadableStream`, 
+    e.g `await resp.text()` or `await resp.body.cancel()`.
+```
+
+**해결** (`supabase/functions/search/index_test.ts`,
+`supabase/functions/store-token/index_test.ts`):
+
+**Pattern**:
+
+```typescript
+Deno.test("test name", async () => {
+  let testUser: TestUser | null = null;
+  let response: Response | null = null;  // ✅ 변수 선언
+  let firstResponse: Response | null = null;  // ✅ 다중 response 시
+  
+  try {
+    testUser = await setupTestUserWithToken();
+    
+    response = await callEdgeFunction("search", { ... });
+    await assertResponseOk(response);
+    const data = await response.json();  // Body consumed
+    
+    // ... assertions ...
+  } finally {
+    // ✅ 모든 response 정리
+    if (response && !response.bodyUsed) {
+      await response.body?.cancel();
+    }
+    if (firstResponse && !firstResponse.bodyUsed) {
+      await firstResponse.body?.cancel();
+    }
+    if (testUser) {
+      await cleanupTestUser(testUser.id);
+    }
+  }
+});
+```
+
+**변경 사항**:
+
+- 모든 response 변수를 try 블록 상단에 선언
+- finally 블록에서 `!response.bodyUsed` 체크 후 `response.body?.cancel()` 호출
+- 다중 response가 있는 테스트(`pagination`, `update token` 등)도 모두 처리
+- `setupTestUserWithToken()` 헬퍼에서도 response consume 추가
+
+**영향받은 테스트**:
+
+- `search/index_test.ts`: 10개 테스트 모두 수정
+- `store-token/index_test.ts`: 6개 테스트 모두 수정
+
+#### Files Created
+
+- 없음
+
+#### Files Modified
+
+- `supabase/functions/search/cache.ts` - Redis 타임아웃 및 재시도 설정
+- `supabase/functions/search/index.ts` - Early filter validation 추가
+- `supabase/functions/search/index_test.ts` - Response body leak 수정
+- `supabase/functions/store-token/index_test.ts` - Response body leak 수정
+- `GEMINI.md` - Deno 테스트 패턴 추가
+- `docs/DEV_LOG.md` - 이 항목 추가
+
+#### Rationale
+
+**Redis 타임아웃**:
+
+- 로컬 환경에서 Upstash Redis 연결 실패 시 DNS 에러로 인한 긴 대기 시간 발생
+- `AbortSignal.timeout(2000)`으로 2초 후 즉시 fallback
+- Graceful degradation: Redis 실패해도 GitHub API로 정상 작동
+
+**Early Filter Validation**:
+
+- 논리적 순서: 입력 검증 → API 호출
+- 에러 발생 시점을 최대한 앞당겨 빠른 피드백 제공
+- 불필요한 리소스 사용 방지
+
+**Test Resource Leak**:
+
+- Deno는 엄격한 resource sanitizer 적용
+- Response body가 consume되지 않으면 leak으로 간주
+- 모든 response를 명시적으로 정리하여 테스트 안정성 향상
+
+#### Verification
+
+**로컬 테스트 실행**:
+
+```bash
+pnpm test:supabase
+```
+
+**기대 결과**:
+
+- ✅ 모든 테스트가 resource leak 없이 통과
+- ✅ Redis 연결 실패 시 2-3초 내에 테스트 완료 (이전: 1분+)
+- ✅ 잘못된 필터 표현식은 즉시 400 에러 반환
+
+#### Next Steps
+
+- [ ] 프로덕션 환경에서 Redis 타임아웃 모니터링
+- [ ] 필요시 타임아웃 값 조정 (현재 2초)
+- [ ] 다른 Edge Functions도 동일한 패턴 적용 고려
+
+---
+
 ## 2026-02-04 (Evening)
 
 ### Vault 쓰기 작업을 RPC 함수로 전환
