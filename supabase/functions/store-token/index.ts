@@ -70,8 +70,8 @@ Deno.serve(async (req) => {
       const { error: updateError } = await vaultClient.rpc(
         "update_secret",
         {
-          id: existing.id,
-          secret: providerToken,
+          secret_id: existing.id,
+          new_secret: providerToken,
         },
       );
 
@@ -86,8 +86,8 @@ Deno.serve(async (req) => {
       const { error: insertError } = await vaultClient.rpc(
         "create_secret",
         {
-          secret: providerToken,
-          name: secretName,
+          new_secret: providerToken,
+          new_name: secretName,
         },
       );
 
