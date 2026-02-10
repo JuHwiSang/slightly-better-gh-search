@@ -1,4 +1,4 @@
-import { evaluateFilter } from "./filter.ts";
+import { evaluateFilter, validateFilter } from "./filter.ts";
 import type { SearchResponse, SearchResultItem } from "./types.ts";
 import { createRedisClient } from "./cache.ts";
 import { generateCorsHeaders, parseCorsConfig } from "./cors.ts";
@@ -115,6 +115,17 @@ Deno.serve(async (req) => {
           config.github.resultsPerPage - 1
         }.`,
       );
+    }
+
+    // Validate filter expression early (before GitHub API calls)
+    if (filter && filter.trim() !== "") {
+      const validation = validateFilter(filter);
+      if (!validation.valid) {
+        throw new ApiError(
+          400,
+          `Invalid filter expression: ${validation.error}`,
+        );
+      }
     }
 
     const startPage = cursorData?.page ?? 1;
