@@ -4,6 +4,324 @@
 
 ---
 
+## 2026-02-15
+
+### Cursor 기반 무한스크롤 구현
+
+#### Overview
+
+- **변경사항**: Pagination 방식에서 cursor 기반 infinite scroll로 전환
+- **목적**: Supabase Edge Function의 cursor 기반 API와 프론트엔드 UX 일치
+- **주요 구현**:
+  - `InfiniteScroll.svelte` 컴포넌트 신규 생성
+  - `SearchResultCard.svelte`를 API 타입에 맞게 수정
+  - `search/+page.svelte`를 Supabase API 연동 및 무한스크롤로 재작성
+  - `Pagination.svelte` 컴포넌트 삭제
+
+#### Implementation Details
+
+**1. InfiniteScroll 컴포넌트 생성**
+(`src/lib/components/InfiniteScroll.svelte`):
+
+**핵심 기능**:
+
+- Intersection Observer API를 사용한 효율적인 스크롤 감지
+- `rootMargin: '100px'`로 하단 도달 100px 전 미리 로딩 트리거
+- `$effect` rune으로 관찰자 생성/정리 자동화
+- Loading, Error, "No more results" 상태 표시
+
+**구현**:
+
+```typescript
+$effect(() => {
+  if (!sentinel || !hasMore || isLoading) {
+    return;
+  }
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0];
+      if (entry.isIntersecting && hasMore && !isLoading) {
+        onLoadMore();
+      }
+    },
+    {
+      rootMargin: "100px",
+    },
+  );
+
+  observer.observe(sentinel);
+
+  return () => {
+    if (observer) {
+      observer.disconnect();
+    }
+  };
+});
+```
+
+**설계 이유**:
+
+- **Intersection Observer 선택**: `scroll` event listener 대비 성능 우수
+- **$effect cleanup**: 컴포넌트 언마운트 시 자동 disconnect
+- **rootMargin 100px**: 사용자 경험 향상 (스크롤 도달 전 미리 로딩)
+
+**2. SearchResultCard 타입 수정**
+(`src/lib/components/SearchResultCard.svelte`):
+
+**문제**: Mock 데이터용 `SearchResult` 인터페이스가 실제 API의
+`SearchResultItem`과 불일치
+
+**변경사항**:
+
+- `SearchResultItem` 타입으로 변경 (Supabase API response 구조)
+- `repository.full_name`, `repository.language`, `repository.stargazers_count`
+  등 중첩 구조 사용
+- 언어 색상 매핑 함수 추가 (`getLanguageColor()`)
+- 날짜 포맷팅 함수 추가 (`formatDate()`)
+- `text_matches`에서 코드 스니펫 추출 (`getCodeSnippet()`)
+- HTML 이스케이핑 추가 (XSS 방지)
+
+**Before** (mock 구조):
+
+```typescript
+interface SearchResult {
+  repository: string;
+  filePath: string;
+  stars: number;
+  language: string;
+  languageColor: string;
+  // ...
+}
+```
+
+**After** (API 구조):
+
+```typescript
+import type { SearchResultItem } from "../../../supabase/functions/search/types";
+
+interface Props {
+  result: SearchResultItem;
+}
+
+const language = $derived(result.repository.language || "Unknown");
+const stars = $derived(result.repository.stargazers_count || 0);
+const languageColor = $derived(getLanguageColor(language));
+```
+
+**3. Search 페이지 전체 재작성** (`src/routes/search/+page.svelte`):
+
+**Before**: Mock 데이터 + Pagination **After**: Supabase API 연동 + Infinite
+Scroll
+
+**주요 변경사항**:
+
+| 변경 영역    | Before              | After                                 |
+| ------------ | ------------------- | ------------------------------------- |
+| 데이터 소스  | Mock 배열           | Supabase Edge Function API            |
+| 네비게이션   | Pagination 컴포넌트 | InfiniteScroll 컴포넌트               |
+| URL 파라미터 | query, filter, page | query, filter만 (page 제거)           |
+| 상태 관리    | currentPage         | results, nextCursor, isLoading, error |
+| 로딩 처리    | 없음                | 초기 로딩 + 추가 로딩 구분            |
+
+**State 관리**:
+
+```typescript
+let results = $state<SearchResultItem[]>([]);
+let nextCursor = $state<string | null>(null);
+let totalCount = $state<number>(0);
+let isLoading = $state(false);
+let error = $state<string | null>(null);
+let incompleteResults = $state(false);
+let hasMore = $derived(nextCursor !== null);
+```
+
+**API 연동 로직**:
+
+```typescript
+async function loadResults(cursor: string | null = null) {
+  if (isLoading) return;
+
+  isLoading = true;
+  error = null;
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      throw new Error("Not authenticated");
+    }
+
+    const params = new URLSearchParams();
+    params.set("query", query);
+    if (filter) params.set("filter", filter);
+    if (cursor) params.set("cursor", cursor);
+    params.set("limit", "10");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/search?${params.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    const data: SearchResponse = await response.json();
+
+    if (cursor) {
+      // Append to existing results
+      results = [...results, ...data.items];
+    } else {
+      // Replace results (initial load)
+      results = data.items;
+    }
+
+    nextCursor = data.next_cursor;
+    totalCount = data.total_count;
+    incompleteResults = incompleteResults || data.incomplete_results;
+  } catch (err) {
+    error = err instanceof Error
+      ? err.message
+      : "Failed to load search results";
+  } finally {
+    isLoading = false;
+  }
+}
+```
+
+**$effect를 사용한 자동 리로드**:
+
+```typescript
+$effect(() => {
+  const currentQuery = query;
+  const currentFilter = filter;
+
+  if (currentQuery) {
+    results = [];
+    nextCursor = null;
+    totalCount = 0;
+    incompleteResults = false;
+    loadResults();
+  }
+});
+```
+
+**4. URL State Management 단순화**:
+
+**Before**: `buildPageUrl(page)` 함수로 page 파라미터 포함\
+**After**: page 파라미터 제거, query와 filter만 URL에 유지
+
+**변경 이유**:
+
+- Cursor 기반 pagination은 page 번호 개념 없음
+- URL은 검색 조건만 표현하면 충분 (북마크, 공유 용도)
+- 무한스크롤은 stateful UI (URL에 모든 상태 반영 불필요)
+
+#### UI/UX 개선사항
+
+**1. 로딩 상태 구분**:
+
+- **초기 로딩**: 전체 화면 중앙에 spinner
+- **추가 로딩**: 결과 하단에 작은 loader
+
+**2. 에러 처리**:
+
+- **초기 로드 실패**: 전체 화면에 에러 + Retry 버튼
+- **추가 로드 실패**: 하단에 에러 + Retry 버튼 (기존 결과 유지)
+
+**3. 결과 카운트**:
+
+```svelte
+{#if totalCount \u003e 0}
+  Showing {results.length.toLocaleString()} of {totalCount.toLocaleString()} results
+{/if}
+```
+
+**4. Incomplete Results 경고**:
+
+```svelte
+{#if incompleteResults}
+  <div class="rounded-lg border border-yellow-600/50 bg-yellow-600/10 ...">
+    ⚠ GitHub API timed out. Results may be incomplete.
+  </div>
+{/if}
+```
+
+#### Files Created
+
+- `src/lib/components/InfiniteScroll.svelte` - 무한스크롤 컴포넌트
+
+#### Files Deleted
+
+- `src/lib/components/Pagination.svelte` - 더 이상 사용하지 않음
+
+#### Files Modified
+
+- `src/routes/search/+page.svelte` - 전체 재작성 (API 연동 + 무한스크롤)
+- `src/lib/components/SearchResultCard.svelte` - API 타입 적용
+- `GEMINI.md` - Infinite Scroll 패턴 추가, 프로젝트 구조 업데이트
+- `docs/DEV_LOG.md` - 이 항목 추가
+
+#### Rationale
+
+**왜 Pagination에서 Infinite Scroll로?**
+
+1. **API 일치성**: Supabase Edge Function이 cursor 기반 pagination 제공
+2. **UX 개선**: 모바일 친화적, 연속적인 탐색 경험
+3. **구현 단순성**: 페이지 계산 불필요, cursor만 관리
+4. **GitHub API 정합성**: GitHub API도 cursor 기반 pagination 사용
+
+**기술적 선택**:
+
+| 결정          | 선택                  | 이유                     |
+| ------------- | --------------------- | ------------------------ |
+| 스크롤 감지   | Intersection Observer | 성능 (scroll event 대비) |
+| 상태 관리     | Svelte 5 $state runes | 간결성, 타입 안전성      |
+| 리렌더 트리거 | $effect               | 자동 dependency tracking |
+| 데이터 누적   | Spread operator       | 불변성 유지              |
+
+#### Breaking Changes
+
+⚠️ **URL 구조 변경**:
+
+- Before: `/search?query=react&filter=stars>1000&page=2`
+- After: `/search?query=react&filter=stars>1000`
+
+기존 북마크에 `page` 파라미터가 있어도 무시됨 (오류는 발생하지 않음)
+
+#### Verification
+
+**Type Check**:
+
+```bash
+pnpm check
+# ✅ No errors
+```
+
+**Manual Testing** (필요):
+
+- [ ] 검색 실행 후 초기 결과 로드 확인
+- [ ] 스크롤 다운 시 자동 로딩 확인
+- [ ] Filter 적용 후 infinite scroll 작동 확인
+- [ ] 마지막 페이지에서 "No more results" 표시 확인
+- [ ] 에러 발생 시 Retry 버튼 작동 확인
+
+#### Next Steps
+
+- [ ] 브라우저에서 실제 동작 테스트
+- [ ] 성능 최적화 (필요 시):
+  - [ ] 가상 스크롤링 적용 (결과가 수백 개 이상일 경우)
+  - [ ] Debouncing/throttling 튜닝
+- [ ] 모바일 반응형 테스트
+
+#### Related
+
+- Supabase Edge Function cursor API: `supabase/functions/search/index.ts`
+- API Types: `supabase/functions/search/types.ts`
+
+---
+
 ## 2026-02-10 (Late Evening)
 
 ### API 응답 필드 네이밍을 snake_case로 통일

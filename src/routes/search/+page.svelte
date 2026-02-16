@@ -2,15 +2,26 @@
 	import Header from '$lib/components/Header.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import SearchResultCard from '$lib/components/SearchResultCard.svelte';
-	import Pagination from '$lib/components/Pagination.svelte';
+	import InfiniteScroll from '$lib/components/InfiniteScroll.svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { supabase } from '$lib/supabase';
+	import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+	import type { SearchResponse, SearchResultItem } from '$lib/types/search';
 
 	// Read URL parameters
 	let query = $derived($page.url.searchParams.get('query') || '');
 	let filter = $derived($page.url.searchParams.get('filter') || '');
-	let currentPage = $derived(parseInt($page.url.searchParams.get('page') || '1', 10));
+
+	// State management
+	let results = $state<SearchResultItem[]>([]);
+	let nextCursor = $state<string | null>(null);
+	let totalCount = $state<number>(0);
+	let isLoading = $state(false);
+	let error = $state<string | null>(null);
+	let incompleteResults = $state(false);
+	let hasMore = $derived(nextCursor !== null);
 
 	// Redirect to main page if no query parameter
 	onMount(() => {
@@ -19,61 +30,87 @@
 		}
 	});
 
-	// Mock data for demonstration
-	const mockResults = [
-		{
-			repository: 'remix-run/react-router',
-			filePath: 'packages/react-router/lib/router.ts',
-			language: 'TypeScript',
-			languageColor: '#3178c6',
-			stars: 51200,
-			updatedAt: '2h ago',
-			codeSnippet: {
-				startLine: 142,
-				lines: [
-					'export function matchRoutes(',
-					'  routes: RouteObject[],',
-					'  locationArg: Partial<Location> | string,',
-					'  basename?: string',
-					'): RouteMatch[] | null { ... }'
-				]
-			}
-		},
-		{
-			repository: 'facebook/react',
-			filePath: 'packages/react-dom/src/server/ReactDOMLegacyServerBrowser.js',
-			language: 'JavaScript',
-			languageColor: '#f1e05a',
-			stars: 213000,
-			updatedAt: '1d ago',
-			codeSnippet: {
-				startLine: 65,
-				lines: [
-					'function renderToNodeStream() {',
-					'  throw new Error(',
-					"    'ReactDOMServer.renderToNodeStream(): The streaming API is not available ' +",
-					"    'in the browser env.'"
-				]
-			}
-		},
-		{
-			repository: 'vercel/next.js',
-			filePath: 'packages/next/src/client/components/router-reducer/router-reducer-types.ts',
-			language: 'TypeScript',
-			languageColor: '#3178c6',
-			stars: 114000,
-			updatedAt: '3d ago',
-			codeSnippet: {
-				startLine: 22,
-				lines: [
-					'export type ReadonlyURLSearchParams = URLSearchParams & {',
-					'  append: never',
-					'  delete: never',
-					'  set: never'
-				]
-			}
+	// Watch for query/filter changes and reload
+	$effect(() => {
+		// Read dependencies (tracked)
+		const currentQuery = query;
+		const currentFilter = filter;
+
+		if (currentQuery) {
+			results = [];
+			nextCursor = null;
+			totalCount = 0;
+			incompleteResults = false;
+			error = null;
+			// untracked to prevent re-triggering
+			untrack(() => {
+				loadResults();
+			});
 		}
-	];
+	});
+
+	async function loadResults(cursor: string | null = null) {
+		if (isLoading) return;
+
+		isLoading = true;
+		error = null;
+
+		try {
+			const { data: sessionData } = await supabase.auth.getSession();
+			if (!sessionData.session) {
+				throw new Error('Not authenticated');
+			}
+
+			// Build search params
+			const params = new URLSearchParams();
+			params.set('query', query);
+			if (filter) params.set('filter', filter);
+			if (cursor) params.set('cursor', cursor);
+			params.set('limit', '10');
+
+			// Call Supabase Edge Function
+			const response = await fetch(
+				`${PUBLIC_SUPABASE_URL}/functions/v1/search?${params.toString()}`,
+				{
+					headers: {
+						Authorization: `Bearer ${sessionData.session.access_token}`,
+						'Content-Type': 'application/json'
+					}
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+				throw new Error(errorData.error || `Search failed: ${response.status}`);
+			}
+
+			const data: SearchResponse = await response.json();
+
+			// Update state
+			if (cursor) {
+				// Append to existing results
+				results = [...results, ...data.items];
+			} else {
+				// Replace results (initial load)
+				results = data.items;
+			}
+
+			nextCursor = data.next_cursor;
+			totalCount = data.total_count;
+			incompleteResults = incompleteResults || data.incomplete_results;
+		} catch (err) {
+			console.error('Search error:', err);
+			error = err instanceof Error ? err.message : 'Failed to load search results';
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function loadMore() {
+		if (nextCursor && !isLoading) {
+			loadResults(nextCursor);
+		}
+	}
 </script>
 
 <div class="flex min-h-screen flex-col">
@@ -85,21 +122,63 @@
 			<SearchBar variant="search" {query} {filter} />
 		</section>
 
+		<!-- Incomplete Results Warning -->
+		{#if incompleteResults}
+			<div
+				class="rounded-lg border border-yellow-600/50 bg-yellow-600/10 px-4 py-3 font-mono text-sm text-yellow-400"
+			>
+				⚠ GitHub API timed out. Results may be incomplete.
+			</div>
+		{/if}
+
 		<!-- Results Count -->
-		<div class="mt-2 flex items-center justify-between border-b border-terminal-border pb-2">
-			<h2 class="font-mono text-sm text-text-muted">Showing 2,341 results</h2>
-		</div>
+		{#if results.length > 0 || isLoading}
+			<div class="mt-2 flex items-center justify-between border-b border-terminal-border pb-2">
+				<h2 class="font-mono text-sm text-text-muted">
+					{#if totalCount > 0}
+						Showing {results.length.toLocaleString()} of {totalCount.toLocaleString()} results
+					{:else}
+						Loading results...
+					{/if}
+				</h2>
+			</div>
+		{/if}
 
 		<!-- Results List -->
-		<div class="flex flex-col gap-8">
-			{#each mockResults as result}
-				<SearchResultCard {result} />
-			{/each}
-		</div>
+		{#if results.length > 0}
+			<div class="flex flex-col gap-8">
+				{#each results as result (result.sha)}
+					<SearchResultCard {result} />
+				{/each}
+			</div>
 
-		<!-- Pagination -->
-		<div class="mt-8 flex justify-center pb-10">
-			<Pagination {currentPage} totalPages={10} {query} {filter} />
-		</div>
+			<!-- Infinite Scroll Component -->
+			<InfiniteScroll {hasMore} {isLoading} {error} onLoadMore={loadMore} />
+		{:else if !isLoading && !error}
+			<div class="flex flex-col items-center gap-4 py-16">
+				<p class="font-mono text-lg text-text-muted">No results found</p>
+				<p class="font-mono text-sm text-text-muted">Try adjusting your search query or filter</p>
+			</div>
+		{:else if error && results.length === 0}
+			<div class="flex flex-col items-center gap-4 py-16">
+				<p class="font-mono text-sm text-red-400">{error}</p>
+				<button
+					onclick={() => loadResults()}
+					class="rounded border border-terminal-border bg-terminal-panel px-4 py-2 font-mono text-sm text-text-muted transition-colors hover:bg-[#21262d]"
+				>
+					Retry
+				</button>
+			</div>
+		{/if}
+
+		<!-- Initial Loading State -->
+		{#if isLoading && results.length === 0}
+			<div class="flex items-center justify-center py-16">
+				<div class="flex items-center gap-2 text-text-muted">
+					<div class="h-5 w-5 animate-spin rounded-full border-2 border-accent-blue border-t-transparent"></div>
+					<span class="font-mono text-sm">Searching...</span>
+				</div>
+			</div>
+		{/if}
 	</main>
 </div>

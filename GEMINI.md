@@ -108,6 +108,59 @@ function buildPageUrl(page: number): string {
 }
 ```
 
+### Infinite Scroll with Intersection Observer
+
+```typescript
+// ✅ Use Intersection Observer for efficient scroll detection
+let sentinel: HTMLDivElement | null = $state(null);
+let observer: IntersectionObserver | null = null;
+
+$effect(() => {
+  if (!sentinel || !hasMore || isLoading) {
+    return;
+  }
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0];
+      if (entry.isIntersecting && hasMore && !isLoading) {
+        onLoadMore();
+      }
+    },
+    {
+      rootMargin: "100px", // Trigger 100px before reaching the sentinel
+    },
+  );
+
+  observer.observe(sentinel);
+
+  return () => {
+    if (observer) {
+      observer.disconnect();
+    }
+  };
+});
+
+// ✅ Accumulate results from cursor-based API
+async function loadResults(cursor: string | null = null) {
+  if (cursor) {
+    // Append to existing results
+    results = [...results, ...data.items];
+  } else {
+    // Replace results (initial load)
+    results = data.items;
+  }
+  nextCursor = data.next_cursor;
+}
+
+// ❌ Don't use scroll event listeners (performance issues)
+window.addEventListener("scroll", () => {
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+    loadMore(); // Triggers too frequently
+  }
+});
+```
+
 ### GitHub API Integration
 
 ```typescript
@@ -417,13 +470,7 @@ export interface BadResponse {
 - ✅ Minimal, purposeful effects
 - **Principle**: "Design intent" not "design copy"
 
-### 7. Pagination
-
-- ❌ Complex ellipsis logic with conditional `...`
-- ✅ Simple `« < [5 numbers] > »` structure with icons
-- Always use `pointer-events-none` on disabled buttons
-
-### 8. Documentation
+### 7. Documentation
 
 - ❌ Modify TRB (troubleshooting) files after implementation
 - ❌ Update only GEMINI.md OR DEV_LOG.md
@@ -466,7 +513,7 @@ src/lib/components/
 ├── Header.svelte               # Logo + profile dropdown (all pages)
 ├── SearchBar.svelte            # Search + filter inputs (main, search pages)
 ├── SearchResultCard.svelte     # Result display
-├── Pagination.svelte           # Page navigation
+├── InfiniteScroll.svelte       # Infinite scroll loader
 ├── ProfileCard.svelte          # User info display
 └── UsageCard.svelte            # API usage visualization
 ```
