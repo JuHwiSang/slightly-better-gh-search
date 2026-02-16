@@ -33,12 +33,32 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     if (error) {
         let errorMessage = "Search failed";
         if (error instanceof FunctionsHttpError) {
+            const { status, statusText } = error.context;
+            let responseBody: unknown = null;
             try {
-                const errorData = await error.context.json();
-                errorMessage = errorData.error || errorMessage;
+                responseBody = await error.context.json();
+                errorMessage = (responseBody as Record<string, string>).error ||
+                    errorMessage;
             } catch {
-                // Use default error message
+                // Response body is not JSON
             }
+            console.error(
+                `[Search] Edge Function error`,
+                `\n  Status: ${status} ${statusText}`,
+                `\n  Query: ${query}`,
+                filter ? `\n  Filter: ${filter}` : "",
+                `\n  Response:`,
+                responseBody ?? "(non-JSON body)",
+            );
+        } else {
+            console.error(
+                `[Search] Unexpected error`,
+                `\n  Type: ${error?.constructor?.name ?? typeof error}`,
+                `\n  Query: ${query}`,
+                filter ? `\n  Filter: ${filter}` : "",
+                `\n  Detail:`,
+                error,
+            );
         }
         return { query, filter, initialData: null, error: errorMessage };
     }
