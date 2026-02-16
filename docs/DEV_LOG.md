@@ -6,6 +6,67 @@
 
 ## 2026-02-17
 
+### SSR 서버 사이드 에러 로깅 추가
+
+#### Overview
+
+- **현상**: `/search` 접근 시 "Search failed"만 표시, `pnpm dev` 터미널에도 에러
+  로그 없음
+- **원인**: `+page.server.ts`의 에러 핸들링에 `console.error()`가 없어 에러가
+  완전히 삼켜짐
+- **해결**: 서버 콘솔에 상세 로그 출력 추가 + GEMINI.md에 가이드라인 추가
+
+#### Implementation Details
+
+`+page.server.ts` 에러 핸들링 개선:
+
+```typescript
+// Before: 에러가 완전히 삼켜짐
+if (error) {
+  let errorMessage = "Search failed";
+  // ... errorMessage 추출 ...
+  return { error: errorMessage }; // 서버 로그 없음
+}
+
+// After: 서버 콘솔에 상세 로깅
+if (error instanceof FunctionsHttpError) {
+  const { status, statusText } = error.context;
+  // ... responseBody 추출 ...
+  console.error(
+    `[Search] Edge Function error`,
+    `\n  Status: ${status} ${statusText}`,
+    `\n  Query: ${query}`,
+    `\n  Response:`,
+    responseBody ?? "(non-JSON body)",
+  );
+}
+```
+
+출력 예시:
+
+```
+[Search] Edge Function error
+  Status: 401 Unauthorized
+  Query: test233
+  Response: { code: 401, message: 'Invalid JWT' }
+```
+
+#### 감사 결과
+
+다른 서버 사이드 파일 점검:
+
+- `auth/callback/+server.ts` — ✅ 이미 로깅 양호
+- `profile/+page.server.ts` — ⬜ 외부 API 호출 없음 (해당 없음)
+- `hooks.server.ts` — ⬜ auth 실패 시 null 반환 (의도적)
+
+#### Files Modified
+
+- `src/routes/search/+page.server.ts` — 서버 사이드 에러 로깅 추가
+- `GEMINI.md` — "Server-Side Error Logging (SvelteKit)" 패턴 추가
+- `docs/DEV_LOG.md` — 이 항목 추가
+
+---
+
 ### Supabase `getSession()` 클라이언트 경고 — 의도적 유지 결정
 
 #### Overview

@@ -459,6 +459,45 @@ export interface BadResponse {
 }
 ```
 
+### Server-Side Error Logging (SvelteKit)
+
+SSR `load` 함수나 `+server.ts`에서 에러 처리 시, **반드시 서버 콘솔에 상세
+로그를 남겨야 함**. SSR에서는 클라이언트 DevTools로 에러를 볼 수 없기 때문.
+
+```typescript
+// ✅ 서버 콘솔에 상세 로깅 + 클라이언트에는 안전한 메시지만 전달
+if (error instanceof FunctionsHttpError) {
+  const { status, statusText } = error.context;
+  let responseBody: unknown = null;
+  try {
+    responseBody = await error.context.json();
+    errorMessage = (responseBody as Record<string, string>).error ||
+      errorMessage;
+  } catch { /* non-JSON body */ }
+  console.error(
+    `[FeatureName] Edge Function error`,
+    `\n  Status: ${status} ${statusText}`,
+    `\n  Context: ...relevant params...`,
+    `\n  Response:`,
+    responseBody ?? "(non-JSON body)",
+  );
+} else {
+  console.error(`[FeatureName] Unexpected error`, `\n  Detail:`, error);
+}
+return { error: errorMessage }; // 클라이언트에는 가공된 메시지만
+
+// ❌ 에러를 삼키거나 로깅 없이 클라이언트에만 전달
+if (error) {
+  return { error: "Search failed" }; // 서버 콘솔에 아무것도 안 남음
+}
+```
+
+**핵심 원칙:**
+
+- 서버 로그: status code, 요청 컨텍스트(query 등), 응답 body 전문
+- 클라이언트: 사용자에게 의미 있는 메시지만 (내부 정보 노출 금지)
+- `[FeatureName]` prefix로 로그 필터링 용이하게
+
 ---
 
 ## Common Mistakes
