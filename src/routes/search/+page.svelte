@@ -7,7 +7,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount, untrack } from 'svelte';
 	import { supabase } from '$lib/supabase';
-	import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+	import { FunctionsHttpError } from '@supabase/supabase-js';
 	import type { SearchResponse, SearchResultItem } from '$lib/types/search';
 
 	// Read URL parameters
@@ -49,6 +49,7 @@
 		}
 	});
 
+	// TODO: Edge Function을 GET → POST로 변경 후, invoke('search', { body: {...} }) 패턴으로 클린업
 	async function loadResults(cursor: string | null = null) {
 		if (isLoading) return;
 
@@ -56,11 +57,6 @@
 		error = null;
 
 		try {
-			const { data: sessionData } = await supabase.auth.getSession();
-			if (!sessionData.session) {
-				throw new Error('Not authenticated');
-			}
-
 			// Build search params
 			const params = new URLSearchParams();
 			params.set('query', query);
@@ -68,36 +64,34 @@
 			if (cursor) params.set('cursor', cursor);
 			params.set('limit', '10');
 
-			// Call Supabase Edge Function
-			const response = await fetch(
-				`${PUBLIC_SUPABASE_URL}/functions/v1/search?${params.toString()}`,
-				{
-					headers: {
-						Authorization: `Bearer ${sessionData.session.access_token}`,
-						'Content-Type': 'application/json'
-					}
-				}
+			// Call Supabase Edge Function via SDK
+			const { data, error: invokeError } = await supabase.functions.invoke(
+				`search?${params.toString()}`,
+				{ method: 'GET' }
 			);
 
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-				throw new Error(errorData.error || `Search failed: ${response.status}`);
+			if (invokeError) {
+				if (invokeError instanceof FunctionsHttpError) {
+					const errorData = await invokeError.context.json();
+					throw new Error(errorData.error || 'Search failed');
+				}
+				throw new Error(invokeError.message || 'Search failed');
 			}
 
-			const data: SearchResponse = await response.json();
+			const searchData = data as SearchResponse;
 
 			// Update state
 			if (cursor) {
 				// Append to existing results
-				results = [...results, ...data.items];
+				results = [...results, ...searchData.items];
 			} else {
 				// Replace results (initial load)
-				results = data.items;
+				results = searchData.items;
 			}
 
-			nextCursor = data.next_cursor;
-			totalCount = data.total_count;
-			incompleteResults = incompleteResults || data.incomplete_results;
+			nextCursor = searchData.next_cursor;
+			totalCount = searchData.total_count;
+			incompleteResults = incompleteResults || searchData.incomplete_results;
 		} catch (err) {
 			console.error('Search error:', err);
 			error = err instanceof Error ? err.message : 'Failed to load search results';

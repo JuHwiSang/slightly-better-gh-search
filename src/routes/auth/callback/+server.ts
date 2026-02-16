@@ -1,5 +1,5 @@
 import { redirect } from "@sveltejs/kit";
-import { PUBLIC_SUPABASE_URL } from "$env/static/public";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ url, locals: { supabase } }) => {
@@ -17,27 +17,24 @@ export const GET: RequestHandler = async ({ url, locals: { supabase } }) => {
             if (providerToken) {
                 // Store token in Vault via Edge Function
                 try {
-                    const response = await fetch(
-                        `${PUBLIC_SUPABASE_URL}/functions/v1/store-token`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Authorization":
-                                    `Bearer ${data.session.access_token}`,
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                provider_token: providerToken,
-                            }),
-                        },
-                    );
+                    const { error: invokeError } = await supabase.functions
+                        .invoke("store-token", {
+                            body: { provider_token: providerToken },
+                        });
 
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        console.error(
-                            "Failed to store GitHub token:",
-                            errorData,
-                        );
+                    if (invokeError) {
+                        if (invokeError instanceof FunctionsHttpError) {
+                            const errorData = await invokeError.context.json();
+                            console.error(
+                                "Failed to store GitHub token:",
+                                errorData,
+                            );
+                        } else {
+                            console.error(
+                                "Failed to store GitHub token:",
+                                invokeError.message,
+                            );
+                        }
                     }
                 } catch (storeError) {
                     console.error("Error storing GitHub token:", storeError);
