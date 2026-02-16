@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-02-17
+
+### Supabase `getSession()` 클라이언트 경고 — 의도적 유지 결정
+
+#### Overview
+
+- **현상**: `auth.svelte.ts`의 `getSession()` 및 `onAuthStateChange()` 사용 시
+  Supabase SDK 보안 경고 출력
+- **결정**: 클라이언트에서는 경고를 수용하고 `getUser()`로 대체하지 않음
+
+#### 분석
+
+- 경고의 핵심 대상은 **서버(SSR)** 환경: JWT 클레임을 서버에서 검증 없이
+  신뢰하면 권한 상승 가능
+- **클라이언트에서는 실질적 위험 없음**: `session.user`를 UI 표시(이름,
+  아바타)에만 사용
+  - localStorage 변조 가능 시점 = 이미 XSS 성공 = 세션 탈취가 더 심각한 위협
+  - Same-Origin Policy로 다른 origin에서 localStorage 접근 불가
+- SDK가 서버/클라이언트 구분 없이 일괄 경고를 띄우는 것이 원인
+
+#### 현재 상태
+
+- **서버** (`hooks.server.ts`): `safeGetSession`에서 `getUser()` 호출 ✅ 안전
+- **클라이언트** (`auth.svelte.ts`): `getSession()` + `onAuthStateChange()` 유지
+  — UI 표시 전용
+
+#### Files Modified
+
+- `src/lib/stores/auth.svelte.ts` - 결정 사유 코드 코멘트 추가
+- `GEMINI.md` - Known Warning 패턴 추가
+- `docs/DEV_LOG.md` - 이 항목 추가
+
+---
+
 ## 2026-02-16
 
 ### Raw fetch → Supabase SDK 마이그레이션

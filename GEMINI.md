@@ -581,6 +581,20 @@ supabase/functions/
 
 **Protected Routes**: `/search`, `/profile`
 
+### Known Warning: `getSession()` on Client
+
+Supabase SDK가 `getSession()`/`onAuthStateChange()`의 `session.user` 사용 시
+보안 경고를 출력하지만, **클라이언트에서는 의도적으로 유지**:
+
+- **서버(SSR)**: JWT 클레임 변조 → 권한 상승 가능 → `getUser()` 필수 ✅
+  (`hooks.server.ts`의 `safeGetSession`)
+- **클라이언트**: UI 표시용(이름, 아바타)만 사용 → 실질적 위험 없음
+  - localStorage 변조 가능 시점 = 이미 XSS = 세션 탈취가 더 큰 위협
+- `getUser()` 대체 시 매번 Auth 서버 네트워크 요청 추가 → 불필요한 오버헤드
+
+**규칙**: `session.user`를 **서버에서 권한 판단에 사용하지 않는 한**, 클라이언트
+`getSession()` 사용은 허용
+
 ---
 
 ## GitHub API Architecture
@@ -653,6 +667,6 @@ significant changes.
 
 ---
 
-_Last Updated: 2026-02-16_\
+_Last Updated: 2026-02-17_\
 _This file is optimized for AI consumption. Keep it concise and
 pattern-focused._
