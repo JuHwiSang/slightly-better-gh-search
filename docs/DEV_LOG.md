@@ -4,6 +4,141 @@
 
 ---
 
+## 2026-02-16
+
+### Raw fetch → Supabase SDK 마이그레이션
+
+#### Overview
+
+- **변경사항**: SvelteKit에서 raw `fetch()`로 Edge Function을 호출하던 2곳을
+  `supabase.functions.invoke()`로 전환
+- **목적**: SDK 일관성 확보, auth header 수동 조합 제거, 에러 핸들링 표준화
+
+#### Implementation Details
+
+**1. Auth Callback** (`src/routes/auth/callback/+server.ts`):
+
+**Before**:
+
+```typescript
+const response = await fetch(
+  `${PUBLIC_SUPABASE_URL}/functions/v1/store-token`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${data.session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ provider_token: providerToken }),
+  },
+);
+
+if (!response.ok) {
+  const errorData = await response.json();
+  console.error("Failed to store GitHub token:", errorData);
+}
+```
+
+**After**:
+
+```typescript
+const { error: invokeError } = await supabase.functions.invoke("store-token", {
+  body: { provider_token: providerToken },
+});
+
+if (invokeError) {
+  if (invokeError instanceof FunctionsHttpError) {
+    const errorData = await invokeError.context.json();
+    console.error("Failed to store GitHub token:", errorData);
+  } else {
+    console.error("Failed to store GitHub token:", invokeError.message);
+  }
+}
+```
+
+**변경 사항**:
+
+- `PUBLIC_SUPABASE_URL` import → `FunctionsHttpError` import
+- SDK가 auth header 자동 주입 (서버 클라이언트의 세션 활용)
+- `FunctionsHttpError` / 일반 에러 분기 처리
+
+**2. Search Page** (`src/routes/search/+page.svelte`):
+
+**Before**:
+
+```typescript
+const { data: sessionData } = await supabase.auth.getSession();
+if (!sessionData.session) {
+  throw new Error("Not authenticated");
+}
+
+const response = await fetch(
+  `${PUBLIC_SUPABASE_URL}/functions/v1/search?${params.toString()}`,
+  {
+    headers: {
+      Authorization: `Bearer ${sessionData.session.access_token}`,
+      "Content-Type": "application/json",
+    },
+  },
+);
+const data: SearchResponse = await response.json();
+```
+
+**After**:
+
+```typescript
+const { data, error: invokeError } = await supabase.functions.invoke(
+  `search?${params.toString()}`,
+  { method: "GET" },
+);
+
+if (invokeError) {
+  if (invokeError instanceof FunctionsHttpError) {
+    const errorData = await invokeError.context.json();
+    throw new Error(errorData.error || "Search failed");
+  }
+  throw new Error(invokeError.message || "Search failed");
+}
+const searchData = data as SearchResponse;
+```
+
+**변경 사항**:
+
+- `PUBLIC_SUPABASE_URL` import → `FunctionsHttpError` import
+- `supabase.auth.getSession()` 직접 호출 제거 (SDK가 자동 처리)
+- `functions.invoke()`는 GET query params를 네이티브 미지원 → function name에
+  params 인코딩하는 임시 패턴 사용
+- **TODO**: Edge Function search를 GET → POST로 변경 후
+  `invoke('search', { body: {...} })` 패턴으로 클린업 예정
+
+#### Files Modified
+
+- `src/routes/auth/callback/+server.ts` - fetch → functions.invoke (POST)
+- `src/routes/search/+page.svelte` - fetch → functions.invoke (GET)
+- `GEMINI.md` - Edge Function Invocation 패턴 추가, OAuth Token Storage 업데이트
+- `docs/DEV_LOG.md` - 이 항목 추가
+
+#### Rationale
+
+- **일관성**: 프로젝트 전체에서 Supabase SDK 사용으로 통일
+- **보안**: auth header 수동 조합 제거 → SDK가 세션 기반으로 자동 주입
+- **에러 핸들링**: `FunctionsHttpError`, `FunctionsRelayError` 등 타입별 분기
+  가능
+
+#### Verification
+
+```bash
+pnpm svelte-check
+# ✅ 0 errors, 0 warnings
+```
+
+#### Next Steps
+
+- [ ] Edge Function의 search를 GET → POST로 변경 (별도 작업)
+- [ ] 변경 후 `invoke('search', { body: {...} })` 패턴으로 클린업
+
+---
+
 ## 2026-02-15
 
 ### Cursor 기반 무한스크롤 구현

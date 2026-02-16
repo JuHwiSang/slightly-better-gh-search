@@ -226,6 +226,36 @@ if (!query) {
 }
 ```
 
+### Edge Function Invocation from SvelteKit
+
+```typescript
+// ✅ Use supabase.functions.invoke() — SDK auto-injects auth header
+import { FunctionsHttpError } from "@supabase/supabase-js";
+
+// POST (clean — body natively supported)
+const { error } = await supabase.functions.invoke("store-token", {
+  body: { provider_token: providerToken },
+});
+
+// GET with query params (function name에 params 인코딩)
+// TODO: Edge Function을 POST로 변경 후 body 패턴으로 전환
+const { data, error } = await supabase.functions.invoke(
+  `search?${params.toString()}`,
+  { method: "GET" },
+);
+
+// ✅ FunctionsHttpError로 에러 핸들링
+if (error instanceof FunctionsHttpError) {
+  const errorData = await error.context.json();
+  console.error(errorData.error);
+}
+
+// ❌ Don't use raw fetch() for Edge Functions
+await fetch(`${PUBLIC_SUPABASE_URL}/functions/v1/search`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
+```
+
 ### GitHub OAuth Token Storage
 
 ```typescript
@@ -234,15 +264,13 @@ const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 if (!error && data.session) {
   const providerToken = data.session.provider_token; // ✅ Only here!
 
-  // Store in Vault via Edge Function
-  await fetch(`${supabaseUrl}/functions/v1/store-token`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${data.session.access_token}`,
-      "Content-Type": "application/json",
+  // Store in Vault via Edge Function (SDK)
+  const { error: invokeError } = await supabase.functions.invoke(
+    "store-token",
+    {
+      body: { provider_token: providerToken },
     },
-    body: JSON.stringify({ provider_token: providerToken }),
-  });
+  );
 }
 
 // ❌ Don't try to get provider_token from getSession() or user_metadata
@@ -625,6 +653,6 @@ significant changes.
 
 ---
 
-_Last Updated: 2026-02-10_\
+_Last Updated: 2026-02-16_\
 _This file is optimized for AI consumption. Keep it concise and
 pattern-focused._
