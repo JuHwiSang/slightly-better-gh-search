@@ -6,6 +6,39 @@
 
 ## 2026-02-17
 
+### Gateway JWT 검증 비활성화 (ADR-006)
+
+#### Overview
+
+- **현상**: Supabase Auth로 로그인한 유저의 JWT를 헤더로 보낼 때 401
+  Unauthorized 발생 (원격/로컬 공통)
+- **원인**: SDK(ES256)와 API Gateway(HS256 기대) 간의 JWT 서명 알고리즘 불일치
+- **해결**: `config.toml`에서 `verify_jwt = false`로 변경하고, Edge Function
+  내부에서 직접 인증을 수행하도록 결정 (ADR-006)
+
+#### Implementation Details
+
+1. **ADR 작성**:
+   [ADR-006](file:///f:/usr/project/slightly-better-gh-search/docs/adr/ADR-006-gateway-jwt-verification.md)에서
+   결정 배경 및 보안 원칙 문서화
+2. **설정 변경**: `config.toml`의 모든 함수(`search`, `store-token`, `ping`)에
+   `verify_jwt = false` 적용
+3. **스크립트 정리**: `package.json`의 `test:supabase:serve`에서 더 이상
+   불필요한 `--no-verify-jwt` 플래그 제거
+4. **문제 해결 문서 업데이트**:
+   [TRB-005](file:///f:/usr/project/slightly-better-gh-search/docs/troubleshooting/TRB-005-local-jwt-verification-failure.md)에
+   공식 해결 내용 반영
+
+#### Files Modified
+
+- `docs/adr/ADR-006-gateway-jwt-verification.md` [NEW]
+- `supabase/config.toml`
+- `package.json`
+- `docs/troubleshooting/TRB-005-local-jwt-verification-failure.md`
+- `docs/DEV_LOG.md`
+
+---
+
 ### SSR 서버 사이드 에러 로깅 추가
 
 #### Overview

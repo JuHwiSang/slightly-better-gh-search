@@ -111,6 +111,8 @@
 			</div>
 		{/if}
 
+		<InfiniteScroll {hasMore} {isLoading} {error} onLoadMore={() => loadResults('debug')} />
+
 		<!-- Results List -->
 		{#if results.length > 0}
 			<div class="flex flex-col gap-8">

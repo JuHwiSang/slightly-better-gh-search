@@ -100,8 +100,9 @@ pnpm test:supabase
 curl http://127.0.0.1:54321/functions/v1/ping
 ```
 
-> **⚠️ 주의**: `--no-verify-jwt`는 인증 검사를 비활성화함. 로컬 개발 환경에서만
-> 사용할 것. 프로덕션 배포 시에는 자동으로 JWT 검증이 활성화됨.
+> **⚠️ 주의**: 과거에는 `--no-verify-jwt`를 로컬 개발 환경에서만 권장했으나,
+> 2026-02-17부로 모든 환경에서 `verify_jwt = false`로 설정하는 것이 프로젝트의
+> 공식 방침이 되었습니다. (ADR-006 참조)
 
 ## 관련 이슈
 
@@ -110,6 +111,10 @@ curl http://127.0.0.1:54321/functions/v1/ping
 
 ## 현재 상태
 
-- **로컬 개발**: `--no-verify-jwt` 우회 방법 사용 예정 (사용 중)
-- **프로덕션**: 문제 없음을 검증할 예정 (검증 완료)
-- **업스트림 수정**: Supabase CLI 해결 대기 중
+- **공식 해결**: `supabase/config.toml`에서 `verify_jwt = false`로 전환 (모든
+  환경 공통)
+- **보안 원칙**: Gateway 검증을 끄는 대신 Edge Function 내부에서 직접
+  `auth.getUser()` 검증 수행
+- **문서화**:
+  [ADR-006](file:///f:/usr/project/slightly-better-gh-search/docs/adr/ADR-006-gateway-jwt-verification.md)에
+  상세 결정 배경 기록 완료
