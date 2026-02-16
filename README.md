@@ -231,30 +231,58 @@ pnpm supabase db reset
 
 ### Deployment (Supabase CLI)
 
-1. Set environment secrets using Supabase CLI:
+1. Set environment secrets:
+
+   **Option A: Using env file (recommended)**
+
+   Copy the template and fill in production values:
    ```bash
-   # (Note: SUPABASE_SERVICE_ROLE_KEY is auto-injected, no need to set)
+   cp supabase/.env.example supabase/.env.deploy
+   # Edit supabase/.env.deploy with production values
+   pnpm supabase secrets set --env-file supabase/.env.deploy
+   ```
 
-   # Set CORS origins
+   **Option B: Setting individually**
+
+   ```bash
    pnpm supabase secrets set ALLOWED_ORIGINS=https://your-app.vercel.app
-
-   # Set Redis credentials
    pnpm supabase secrets set UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
    pnpm supabase secrets set UPSTASH_REDIS_REST_TOKEN=your-token
-
-   # (Optional) Set cache TTL
    pnpm supabase secrets set CACHE_TTL_CODE_SEARCH_SECONDS=3600
    pnpm supabase secrets set CACHE_TTL_REPOSITORY_SECONDS=86400
+   ```
 
+   > **Note**: `SUPABASE_SERVICE_ROLE_KEY` is auto-injected by the runtime — no
+   > need to set it manually.
+
+   ```bash
    # Verify secrets
    pnpm supabase secrets list
    ```
 
 2. Deploy Edge Functions:
+
+   `--import-map` flag is **required** because `supabase functions deploy` does
+   not automatically recognize `deno.json` import maps
+   ([TRB-010](docs/troubleshooting/TRB-010-edge-function-deploy-import-map.md)):
+
    ```bash
-   pnpm supabase functions deploy search
-   pnpm supabase functions deploy store-token
+   pnpm supabase functions deploy search --import-map ./supabase/functions/deno.json
+   pnpm supabase functions deploy store-token --import-map ./supabase/functions/deno.json
    ```
+
+#### Deployment Troubleshooting
+
+- **`No such file or directory (os error 2)` during bundling**: This is a
+  Docker-based bundling issue. **Quit Docker Desktop completely** and retry —
+  Supabase CLI will fall back to local Deno for bundling, which is more stable.
+  See
+  [TRB-006](docs/troubleshooting/TRB-006-edge-function-deploy-os-error-2.md).
+
+- **Import map packages not found during deploy**: Add the `--import-map` flag
+  pointing to `./supabase/functions/deno.json`. This is only needed for deploy —
+  `supabase functions serve` recognizes the import map automatically. See
+  [TRB-010](docs/troubleshooting/TRB-010-edge-function-deploy-import-map.md).
 
 ---
 
