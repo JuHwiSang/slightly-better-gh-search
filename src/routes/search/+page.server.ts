@@ -18,17 +18,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
         throw redirect(303, "/");
     }
 
-    // Build search params
-    const params = new URLSearchParams();
-    params.set("query", query);
-    if (filter) params.set("filter", filter);
-    params.set("limit", "10");
-
-    // Call Edge Function from server
-    const { data, error } = await locals.supabase.functions.invoke(
-        `search?${params.toString()}`,
-        { method: "GET" },
-    );
+    // Call Edge Function from server (POST with body)
+    const { data, error } = await locals.supabase.functions.invoke("search", {
+        body: {
+            query,
+            ...(filter && { filter }),
+            limit: 10,
+        },
+    });
 
     if (error) {
         let errorMessage = "Search failed";

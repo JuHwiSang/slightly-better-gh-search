@@ -39,10 +39,11 @@ Deno.test("search: should perform basic search", async () => {
     testUser = await setupTestUserWithToken();
 
     response = await callEdgeFunction("search", {
+      method: "POST",
       accessToken: testUser.accessToken,
-      searchParams: {
+      body: {
         query: "language:typescript",
-        limit: "10",
+        limit: 10,
       },
     });
 
@@ -77,11 +78,12 @@ Deno.test("search: should apply filter expression", async () => {
     testUser = await setupTestUserWithToken();
 
     response = await callEdgeFunction("search", {
+      method: "POST",
       accessToken: testUser.accessToken,
-      searchParams: {
+      body: {
         query: "react",
         filter: "stars > 1000",
-        limit: "5",
+        limit: 5,
       },
     });
 
@@ -121,10 +123,11 @@ Deno.test("search: should support pagination with cursor", async () => {
 
     // First page
     firstResponse = await callEdgeFunction("search", {
+      method: "POST",
       accessToken: testUser.accessToken,
-      searchParams: {
+      body: {
         query: "javascript",
-        limit: "5",
+        limit: 5,
       },
     });
 
@@ -136,10 +139,11 @@ Deno.test("search: should support pagination with cursor", async () => {
     // If there's a next cursor, fetch next page
     if (firstData.next_cursor) {
       secondResponse = await callEdgeFunction("search", {
+        method: "POST",
         accessToken: testUser.accessToken,
-        searchParams: {
+        body: {
           query: "javascript",
-          limit: "5",
+          limit: 5,
           cursor: firstData.next_cursor,
         },
       });
@@ -187,10 +191,11 @@ Deno.test("search: should return text_matches for highlighting", async () => {
     testUser = await setupTestUserWithToken();
 
     response = await callEdgeFunction("search", {
+      method: "POST",
       accessToken: testUser.accessToken,
-      searchParams: {
+      body: {
         query: "function",
-        limit: "3",
+        limit: 3,
       },
     });
 
@@ -228,10 +233,11 @@ Deno.test("search: should return 400 when query is missing", async () => {
     testUser = await setupTestUserWithToken();
 
     response = await callEdgeFunction("search", {
+      method: "POST",
       accessToken: testUser.accessToken,
-      searchParams: {
+      body: {
         // No query
-        limit: "10",
+        limit: 10,
       },
     });
 
@@ -256,8 +262,9 @@ Deno.test("search: should return 400 when cursor format is invalid", async () =>
     testUser = await setupTestUserWithToken();
 
     response = await callEdgeFunction("search", {
+      method: "POST",
       accessToken: testUser.accessToken,
-      searchParams: {
+      body: {
         query: "test",
         cursor: "invalid-cursor-format",
       },
@@ -284,8 +291,9 @@ Deno.test("search: should return 400 when filter expression is invalid", async (
     testUser = await setupTestUserWithToken();
 
     response = await callEdgeFunction("search", {
+      method: "POST",
       accessToken: testUser.accessToken,
-      searchParams: {
+      body: {
         query: "test",
         filter: "invalid filter expression !!!",
       },
@@ -309,8 +317,9 @@ Deno.test("search: should return 401 when missing authorization", async () => {
 
   try {
     response = await callEdgeFunction("search", {
+      method: "POST",
       // No accessToken
-      searchParams: {
+      body: {
         query: "test",
       },
     });
@@ -334,8 +343,9 @@ Deno.test("search: should return 401 when GitHub token not found in Vault", asyn
     testUser = await createTestUser();
 
     response = await callEdgeFunction("search", {
+      method: "POST",
       accessToken: testUser.accessToken,
-      searchParams: {
+      body: {
         query: "test",
       },
     });
@@ -363,22 +373,24 @@ Deno.test("search: should use cache when available", {
   try {
     testUser = await setupTestUserWithToken();
 
-    const searchParams = {
+    const searchBody = {
       query: "priority:high",
-      limit: "5",
+      limit: 5,
     };
 
     // First request - should fetch from GitHub and cache
     response1 = await callEdgeFunction("search", {
+      method: "POST",
       accessToken: testUser.accessToken,
-      searchParams,
+      body: searchBody,
     });
     await assertResponseOk(response1);
 
     // Second request - should be served from cache
     response2 = await callEdgeFunction("search", {
+      method: "POST",
       accessToken: testUser.accessToken,
-      searchParams,
+      body: searchBody,
     });
     await assertResponseOk(response2);
 

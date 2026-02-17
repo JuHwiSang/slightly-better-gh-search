@@ -29,7 +29,6 @@
 		isLoading = false;
 	});
 
-	// TODO: Edge Function을 GET → POST로 변경 후, invoke('search', { body: {...} }) 패턴으로 클린업
 	async function loadResults(cursor: string) {
 		if (isLoading) return;
 
@@ -37,17 +36,17 @@
 		error = null;
 
 		try {
-			// Build search params
-			const params = new URLSearchParams();
-			params.set('query', props.data.query);
-			if (props.data.filter) params.set('filter', props.data.filter);
-			params.set('cursor', cursor);
-			params.set('limit', '10');
-
 			// Call Supabase Edge Function via SDK (CSR for infinite scroll)
 			const { data: responseData, error: invokeError } = await supabase.functions.invoke(
-				`search?${params.toString()}`,
-				{ method: 'GET' }
+				'search',
+				{
+					body: {
+						query: props.data.query,
+						...(props.data.filter && { filter: props.data.filter }),
+						cursor,
+						limit: 10,
+					},
+				}
 			);
 
 			if (invokeError) {

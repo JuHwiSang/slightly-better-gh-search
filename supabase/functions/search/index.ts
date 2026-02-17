@@ -70,13 +70,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Parse URL query parameters
-    const url = new URL(req.url);
-    const query = url.searchParams.get("query") || "";
-    const filter = url.searchParams.get("filter") || "";
-    const cursor = url.searchParams.get("cursor");
+    // Parse request body (POST)
+    const body = await req.json();
+    const query = body.query || "";
+    const filter = body.filter || "";
+    const cursor = body.cursor || null;
     const limit = parseInt(
-      url.searchParams.get("limit") || config.search.defaultLimit.toString(),
+      body.limit?.toString() || config.search.defaultLimit.toString(),
       10,
     );
 

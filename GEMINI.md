@@ -237,10 +237,9 @@ const { error } = await supabase.functions.invoke("store-token", {
   body: { provider_token: providerToken },
 });
 
-// GET with query params (function name에 params 인코딩)
-// TODO: Edge Function을 POST로 변경 후 body 패턴으로 전환
+// GET with query params (필요한 경우에만)
 const { data, error } = await supabase.functions.invoke(
-  `search?${params.toString()}`,
+  `function-name?${params.toString()}`,
   { method: "GET" },
 );
 
