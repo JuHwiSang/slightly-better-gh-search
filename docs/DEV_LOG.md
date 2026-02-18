@@ -4,6 +4,110 @@
 
 ---
 
+## 2026-02-18
+
+### `store-token` Edge Function → PostgreSQL RPC 마이그레이션
+
+#### Overview
+
+- **변경사항**: `store-token` Edge Function을 `public.store_github_token`
+  PostgreSQL RPC 함수로 대체
+- **목적**: Edge Function 제거로 코드 복잡도 감소, 네트워크 홉 단축, 인증/권한을
+  DB 레이어에서 처리
+
+#### Implementation Details
+
+**1. 새 Migration**
+(`supabase/migrations/20260218133000_add_store_github_token_function.sql`):
+
+```sql
+CREATE OR REPLACE FUNCTION public.store_github_token(p_token TEXT)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public, vault
+AS $$
+DECLARE
+  v_user_id uuid := auth.uid();
+  v_secret_name TEXT;
+  v_existing_id uuid;
+BEGIN
+  IF v_user_id IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
+  IF p_token IS NULL OR p_token = '' THEN RAISE EXCEPTION 'Token must not be empty'; END IF;
+
+  v_secret_name := 'github_token_' || v_user_id::text;
+
+  SELECT id INTO v_existing_id FROM vault.decrypted_secrets WHERE name = v_secret_name LIMIT 1;
+
+  IF v_existing_id IS NOT NULL THEN
+    PERFORM vault.update_secret(v_existing_id, p_token);
+  ELSE
+    PERFORM vault.create_secret(p_token, v_secret_name);
+  END IF;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.store_github_token(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.store_github_token(text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.store_github_token(text) TO authenticated;
+```
+
+핵심:
+
+- `SECURITY DEFINER` + `SET search_path` — 기존 `delete_secret_by_name` 패턴과
+  동일
+- `auth.uid()` — JWT에서 유저 ID 자동 추출, 다른 유저 토큰 접근 불가
+- `authenticated` role에만 GRANT — anon 호출 차단
+- `vault.update_secret` / `vault.create_secret` — Vault 내장 RPC 직접 호출
+
+**2. SvelteKit Callback 변경** (`src/routes/auth/callback/+server.ts`):
+
+```diff
+-const { error: invokeError } = await supabase.functions.invoke("store-token", {
+-    body: { provider_token: providerToken },
+-});
++const { error: rpcError } = await supabase
++    .rpc("store_github_token", { p_token: providerToken });
+```
+
+`FunctionsHttpError` import도 제거.
+
+**3. Search 테스트 헬퍼 변경** (`supabase/functions/search/index_test.ts`):
+
+`setupTestUserWithToken()`에서 Edge Function 대신 admin client로 Vault에 직접
+저장:
+
+```diff
+-const response = await callEdgeFunction("store-token", { ... });
++const adminClient = createAdminClient();
++const { error } = await adminClient
++  .schema("vault")
++  .rpc("create_secret", { new_secret: env.githubToken, new_name: secretName });
+```
+
+> 테스트에서는 service_role admin client를 사용하므로 `auth.uid()`가 없어 새
+> RPC를 직접 호출할 수 없음.
+
+#### Files Created
+
+- `supabase/migrations/20260218133000_add_store_github_token_function.sql` [NEW]
+
+#### Files Deleted
+
+- `supabase/functions/store-token/index.ts` [DELETED]
+- `supabase/functions/store-token/index_test.ts` [DELETED]
+
+#### Files Modified
+
+- `src/routes/auth/callback/+server.ts` — `functions.invoke` → `supabase.rpc`
+- `supabase/functions/search/index_test.ts` — `setupTestUserWithToken` admin
+  client로 변경
+- `supabase/config.toml` — `[functions.store-token]` 블록 제거
+- `GEMINI.md` — Edge Function Invocation, GitHub OAuth Token Storage 패턴
+  업데이트
+- `docs/DEV_LOG.md` — 이 항목 추가
+
+---
+
 ## 2026-02-17
 
 ### Gateway JWT 검증 비활성화 (ADR-006)

@@ -4,6 +4,7 @@ import {
   assertResponseStatus,
   callEdgeFunction,
   cleanupTestUser,
+  createAdminClient,
   createTestUser,
   getTestEnv,
   isRedisConfigured,
@@ -19,14 +20,19 @@ async function setupTestUserWithToken(): Promise<TestUser> {
   const testUser = await createTestUser();
   const env = getTestEnv();
 
-  // Store GitHub token in Vault
-  const response = await callEdgeFunction("store-token", {
-    method: "POST",
-    accessToken: testUser.accessToken,
-    body: { provider_token: env.githubToken },
-  });
-  await assertResponseOk(response, "Failed to store token during setup");
-  await response.json(); // Consume response body
+  // Store GitHub token directly in Vault via admin client
+  // (store_github_token RPC requires auth.uid(), not available with service_role)
+  const adminClient = createAdminClient();
+  const secretName = `github_token_${testUser.id}`;
+  const { error } = await adminClient
+    .schema("vault")
+    .rpc("create_secret", {
+      new_secret: env.githubToken,
+      new_name: secretName,
+    });
+  if (error) {
+    throw new Error(`Failed to store token during setup: ${error.message}`);
+  }
 
   return testUser;
 }
@@ -52,7 +58,7 @@ Deno.test("search: should perform basic search", async () => {
 
     // Verify response structure
 
-    console.log(data);
+    // console.log(data);
 
     assertExists(data.items);
     assertEquals(Array.isArray(data.items), true);

@@ -1,5 +1,4 @@
 import { redirect } from "@sveltejs/kit";
-import { FunctionsHttpError } from "@supabase/supabase-js";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ url, locals: { supabase } }) => {
@@ -15,29 +14,16 @@ export const GET: RequestHandler = async ({ url, locals: { supabase } }) => {
             const providerToken = data.session.provider_token;
 
             if (providerToken) {
-                // Store token in Vault via Edge Function
-                try {
-                    const { error: invokeError } = await supabase.functions
-                        .invoke("store-token", {
-                            body: { provider_token: providerToken },
-                        });
+                // Store token in Vault via RPC
+                const { error: rpcError } = await supabase
+                    .rpc("store_github_token", { p_token: providerToken });
 
-                    if (invokeError) {
-                        if (invokeError instanceof FunctionsHttpError) {
-                            const errorData = await invokeError.context.json();
-                            console.error(
-                                "Failed to store GitHub token:",
-                                errorData,
-                            );
-                        } else {
-                            console.error(
-                                "Failed to store GitHub token:",
-                                invokeError.message,
-                            );
-                        }
-                    }
-                } catch (storeError) {
-                    console.error("Error storing GitHub token:", storeError);
+                if (rpcError) {
+                    console.error(
+                        "[AuthCallback] Failed to store GitHub token",
+                        "\n  Detail:",
+                        rpcError.message,
+                    );
                 }
             }
 

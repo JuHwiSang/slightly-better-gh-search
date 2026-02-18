@@ -233,15 +233,9 @@ if (!query) {
 import { FunctionsHttpError } from "@supabase/supabase-js";
 
 // POST (clean — body natively supported)
-const { error } = await supabase.functions.invoke("store-token", {
-  body: { provider_token: providerToken },
+const { data, error } = await supabase.functions.invoke("search", {
+  body: { query, filter, limit },
 });
-
-// GET with query params (필요한 경우에만)
-const { data, error } = await supabase.functions.invoke(
-  `function-name?${params.toString()}`,
-  { method: "GET" },
-);
 
 // ✅ FunctionsHttpError로 에러 핸들링
 if (error instanceof FunctionsHttpError) {
@@ -263,13 +257,15 @@ const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 if (!error && data.session) {
   const providerToken = data.session.provider_token; // ✅ Only here!
 
-  // Store in Vault via Edge Function (SDK)
-  const { error: invokeError } = await supabase.functions.invoke(
-    "store-token",
-    {
-      body: { provider_token: providerToken },
-    },
-  );
+  // Store in Vault via RPC (SECURITY DEFINER — auth.uid() auto-scopes to user)
+  const { error: rpcError } = await supabase
+    .rpc("store_github_token", { p_token: providerToken });
+  if (rpcError) {
+    console.error(
+      "[AuthCallback] Failed to store GitHub token",
+      rpcError.message,
+    );
+  }
 }
 
 // ❌ Don't try to get provider_token from getSession() or user_metadata
@@ -705,6 +701,6 @@ significant changes.
 
 ---
 
-_Last Updated: 2026-02-17_\
+_Last Updated: 2026-02-18_\
 _This file is optimized for AI consumption. Keep it concise and
 pattern-focused._
