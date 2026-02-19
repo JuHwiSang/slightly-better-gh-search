@@ -8,13 +8,11 @@ import { config } from "./config.ts";
 function createBaseClient(
   key: string,
   authHeader?: string,
-  schema?: string,
 ): SupabaseClient {
   return createClient(config.supabase.url, key, {
     global: {
       headers: authHeader ? { Authorization: authHeader } : {},
     },
-    db: schema ? { schema } : undefined,
   });
 }
 
@@ -30,13 +28,6 @@ export function createAnonClient(authHeader: string): SupabaseClient {
  */
 export function createAdminClient(): SupabaseClient {
   return createBaseClient(config.supabase.serviceRoleKey);
-}
-
-/**
- * Initialize Supabase admin client with service_role key for vault schema operations
- */
-export function createVaultAdminClient(): SupabaseClient {
-  return createBaseClient(config.supabase.serviceRoleKey, undefined, "vault");
 }
 
 /**
@@ -59,10 +50,11 @@ export async function getGitHubToken(
     );
   }
 
-  // Retrieve token from Vault using vault-schema admin client
+  // Retrieve token from Vault
   const secretName = `github_token_${user.id}`;
-  const vaultClient = createVaultAdminClient();
-  const { data, error } = await vaultClient
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .schema("vault")
     .from("decrypted_secrets")
     .select("decrypted_secret")
     .eq("name", secretName)
