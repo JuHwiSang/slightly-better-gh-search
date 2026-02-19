@@ -6,7 +6,74 @@
 
 ## 2026-02-19
 
-### `createVaultAdminClient` 제거 — `.schema()` 체이닝으로 단순화
+### 계정 삭제 기능 구현 (`delete-account` Edge Function)
+
+#### Overview
+
+- **변경사항**: `delete-account` Edge Function 신규 생성, Profile 페이지에 실제
+  계정 삭제 로직 연결
+- **목적**: 유저가 Supabase Vault의 GitHub 토큰과 계정을 완전히 삭제할 수 있는
+  기능 제공
+- **관련 ADR**:
+  [ADR-007](file:///f:/usr/project/slightly-better-gh-search/docs/adr/ADR-007-account-deletion-token-revocation.md)
+  — GitHub 토큰 미철회 결정
+
+#### Implementation Details
+
+**1. Edge Function** (`supabase/functions/delete-account/index.ts`):
+
+처리 흐름:
+
+1. Authorization 헤더 검증
+2. `anonClient.auth.getUser()`로 유저 확인
+3. `admin.rpc('delete_secret_by_name')` — Vault의 `github_token_{userId}` 삭제
+   (best-effort, 없어도 계속 진행)
+4. `admin.auth.admin.deleteUser(userId)` — Supabase Auth 유저 삭제
+
+기존 `search` Edge Function의 유틸(`auth.ts`, `cors.ts`, `errors.ts`)을 재사용.
+
+```typescript
+// Vault secret 삭제 (best effort)
+const { error: deleteSecretError } = await adminClient.rpc(
+  "delete_secret_by_name",
+  { secret_name: `github_token_${userId}` },
+);
+if (deleteSecretError) {
+  console.warn(...); // Continue regardless
+}
+
+// Auth 유저 삭제
+const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(userId);
+if (deleteUserError) {
+  throw new ApiError(500, "Failed to delete account. Please try again.");
+}
+```
+
+**2. SvelteKit** (`src/routes/profile/+page.svelte`):
+
+- `handleDeleteAccount` — `supabase.functions.invoke('delete-account')` 호출,
+  성공 시 signOut → goto('/')
+- `isDeleting` 상태 — 버튼 비활성화 + "Deleting..." 텍스트
+- `deleteError` 상태 — dialog 내 빨간 에러 메시지 표시
+
+**3. GitHub 토큰 미철회 (ADR-007)**:
+
+Vault 레코드만 삭제, GitHub OAuth 토큰 자체는 revoke하지 않음. scope가
+`read:user`뿐이라 리스크 최소. 필요 시 GitHub Settings에서 수동 revoke 가능.
+
+#### Files Created
+
+- `supabase/functions/delete-account/index.ts` [NEW]
+- `supabase/functions/delete-account/index_test.ts` [NEW]
+- `docs/adr/ADR-007-account-deletion-token-revocation.md` [NEW]
+
+#### Files Modified
+
+- `supabase/config.toml` — `[functions.delete-account]` 블록 추가
+- `src/routes/profile/+page.svelte` — 실제 삭제 로직 구현, 로딩/에러 UI 추가
+- `docs/DEV_LOG.md` — 이 항목 추가
+
+---
 
 #### Overview
 

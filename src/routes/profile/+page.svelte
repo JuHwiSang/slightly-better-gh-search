@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { supabase } from '$lib/supabase';
+	import { FunctionsHttpError } from '@supabase/supabase-js';
 	import IconLucideLogOut from '~icons/lucide/log-out';
 	import IconLucideUserMinus from '~icons/lucide/user-minus';
 	import IconLucideArrowLeft from '~icons/lucide/arrow-left';
@@ -9,12 +11,16 @@
 	import { authState } from '$lib/stores/auth.svelte';
 
 	let deleteDialog: HTMLDialogElement | undefined;
+	let isDeleting = $state(false);
+	let deleteError = $state<string | null>(null);
 
 	function openDeleteDialog() {
+		deleteError = null;
 		deleteDialog?.showModal();
 	}
 
 	function closeDeleteDialog() {
+		if (isDeleting) return;
 		deleteDialog?.close();
 	}
 
@@ -23,10 +29,43 @@
 		goto('/');
 	}
 
-	function handleDeleteAccount() {
-		// TODO: 실제 계정 삭제 로직 구현
-		console.log('Account deleted');
-		closeDeleteDialog();
+	async function handleDeleteAccount() {
+		isDeleting = true;
+		deleteError = null;
+
+		try {
+			const { error } = await supabase.functions.invoke('delete-account', {
+				method: 'POST'
+			});
+
+			if (error) {
+				let message = 'Failed to delete account. Please try again.';
+				if (error instanceof FunctionsHttpError) {
+					try {
+						const body = await error.context.json();
+						message = body.error || message;
+					} catch {
+						// non-JSON body
+					}
+					console.error(
+						`[Profile] Delete account error`,
+						`\n  Status: ${error.context.status}`,
+						`\n  Detail:`,
+						error
+					);
+				} else {
+					console.error(`[Profile] Unexpected error during account deletion:`, error);
+				}
+				deleteError = message;
+				return;
+			}
+
+			// Success: sign out and redirect
+			await authState.signOut();
+			goto('/');
+		} finally {
+			isDeleting = false;
+		}
 	}
 </script>
 
@@ -111,19 +150,28 @@
 				</div>
 			</div>
 
+			<!-- Error message -->
+			{#if deleteError}
+				<p class="rounded-lg border border-red-800 bg-red-900/20 px-3 py-2 text-sm text-red-400">
+					{deleteError}
+				</p>
+			{/if}
+
 			<!-- Actions -->
 			<div class="flex gap-3">
 				<button
 					onclick={closeDeleteDialog}
-					class="flex h-11 flex-1 items-center justify-center rounded-lg border border-slate-700 bg-[#232f48] font-medium text-white transition-colors hover:bg-[#2a3855]"
+					disabled={isDeleting}
+					class="{isDeleting ? 'cursor-not-allowed opacity-50' : 'hover:bg-[#2a3855]'} flex h-11 flex-1 items-center justify-center rounded-lg border border-slate-700 bg-[#232f48] font-medium text-white transition-colors"
 				>
 					Cancel
 				</button>
 				<button
 					onclick={handleDeleteAccount}
-					class="flex h-11 flex-1 items-center justify-center rounded-lg border-2 border-red-600 bg-red-600 font-bold text-white transition-all hover:border-red-500 hover:bg-red-500"
+					disabled={isDeleting}
+					class="{isDeleting ? 'cursor-not-allowed opacity-70' : 'hover:border-red-500 hover:bg-red-500'} flex h-11 flex-1 items-center justify-center rounded-lg border-2 border-red-600 bg-red-600 font-bold text-white transition-all"
 				>
-					Delete Account
+					{isDeleting ? 'Deleting...' : 'Delete Account'}
 				</button>
 			</div>
 		</div>
