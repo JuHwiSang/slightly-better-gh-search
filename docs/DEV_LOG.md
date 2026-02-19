@@ -4,6 +4,71 @@
 
 ---
 
+## 2026-02-20
+
+### pgTAP을 이용한 RPC 함수 단위 테스트
+
+#### Overview
+
+- **변경사항**: `store_github_token`, `delete_secret_by_name` 두 RPC 함수에 대한
+  pgTAP 단위 테스트 추가
+- **목적**: DB 레벨에서 RPC 함수의 동작, 권한 분리, edge case 직접 검증
+- **참고**:
+  [TRB-011](file:///f:/usr/project/slightly-better-gh-search/docs/troubleshooting/TRB-011-pgtap-database-testing.md)
+  — pgTAP 에코시스템 개념 정리
+
+#### Implementation Details
+
+**1. 테스트 인프라 구축**
+
+Migration (`20260219164536_install_dbdev_with_test_helpers.sql`):
+
+- `pg_tle` + `http` extension 활성화
+- GitHub API에서 `dbdev` SQL 다운로드 → `pgtle.install_extension()` 설치
+- `dbdev.install('basejump-supabase_test_helpers')` — 테스트 헬퍼 파일 등록
+
+핵심 스택:
+
+| 구성요소                       | 역할                                                  |
+| ------------------------------ | ----------------------------------------------------- |
+| pg_tle                         | 안전한 extension 실행 샌드박스                        |
+| dbdev                          | 커뮤니티 extension 패키지 매니저 (pg_tle 위에서 동작) |
+| pgTAP                          | 테스트 프레임워크 (Supabase 기본 포함)                |
+| basejump-supabase_test_helpers | `tests.authenticate_as()` 등 auth 시뮬레이션          |
+
+**2. `store_github_token` 테스트** (7 tests):
+
+- 함수 메타데이터 (`function_returns`, `is_definer`)
+- 신규 토큰 저장 → Vault 확인
+- 기존 토큰 업데이트 (upsert) → 값 변경 확인
+- 빈 토큰 거부 (`throws_ok`)
+
+**3. `delete_secret_by_name` 테스트** (5 tests):
+
+- 함수 메타데이터
+- service_role로 시크릿 삭제 → 삭제 확인
+- 없는 시크릿 삭제 (no-op, `lives_ok`)
+
+**주의**: Vault secret 생성 시 `INSERT INTO vault.secrets` 직접 접근 불가
+(`_crypto_aead_det_noncegen` permission denied). `vault.create_secret()` RPC를
+사용해야 함.
+
+#### Files Created
+
+- `supabase/migrations/20260219164536_install_dbdev_with_test_helpers.sql` [NEW]
+- `supabase/tests/rpc-store-github-token.sql` [NEW]
+- `supabase/tests/rpc-delete-secret-by-name.sql` [NEW]
+- `docs/troubleshooting/TRB-011-pgtap-database-testing.md` [NEW]
+
+#### Verification
+
+```bash
+supabase test db
+# ✅ Files=2, Tests=12, all passed
+```
+
+---
+
 ## 2026-02-19
 
 ### 계정 삭제 기능 구현 (`delete-account` Edge Function)
