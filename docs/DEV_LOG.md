@@ -4,6 +4,58 @@
 
 ---
 
+## 2026-02-19
+
+### `createVaultAdminClient` 제거 — `.schema()` 체이닝으로 단순화
+
+#### Overview
+
+- **변경사항**: `createVaultAdminClient()` 팩토리 함수를 제거하고
+  `.schema("vault")` 체이닝으로 대체
+- **목적**: 불필요한 추상화 제거, 코드 단순화
+
+#### Implementation Details
+
+**Before**: Vault 전용 클라이언트를 별도로 생성
+
+```typescript
+// 클라이언트 생성 시 schema 고정
+function createBaseClient(key: string, authHeader?: string, schema?: string) {
+  return createClient(url, key, { db: schema ? { schema } : undefined });
+}
+
+export function createVaultAdminClient(): SupabaseClient {
+  return createBaseClient(config.supabase.serviceRoleKey, undefined, "vault");
+}
+
+// 사용처
+const vaultClient = createVaultAdminClient();
+const { data } = await vaultClient.from("decrypted_secrets")...
+```
+
+**After**: 쿼리 레벨에서 `.schema()` 체이닝
+
+```typescript
+function createBaseClient(key: string, authHeader?: string) {
+  return createClient(url, key, { /* schema 파라미터 제거 */ });
+}
+
+// 사용처
+const adminClient = createAdminClient();
+const { data } = await adminClient.schema("vault").from("decrypted_secrets")...
+```
+
+**변경 근거**: Supabase SDK의 `.schema()`는 쿼리 레벨에서 스키마를 지정하므로,
+클라이언트를 별도로 만들 필요 없음. 호출 지점에서 vault 접근이 명시적으로 보여
+가독성도 향상.
+
+#### Files Modified
+
+- `supabase/functions/search/auth.ts` — `createVaultAdminClient` 제거,
+  `createBaseClient` 단순화, `getGitHubToken`에서 `.schema("vault")` 체이닝 사용
+
+---
+
 ## 2026-02-18
 
 ### `store-token` Edge Function → PostgreSQL RPC 마이그레이션
