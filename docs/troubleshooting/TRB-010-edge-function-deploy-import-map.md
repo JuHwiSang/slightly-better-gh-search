@@ -31,24 +31,43 @@ import { compileExpression } from "filtrex";
 
 ## 원인 분석
 
-`supabase functions deploy` 명령은 기본적으로 `deno.json`의 import map을
-자동으로 인식하지 않음. deploy 시에는 CLI가 import map 경로를 명시적으로
-전달받아야 함.
+`supabase functions deploy`의 번들링 동작은 **Docker 실행 여부**에 따라 달라짐:
+
+| 환경               | 번들러          | `deno.json` import map | `--import-map` 필요 여부 |
+| ------------------ | --------------- | ---------------------- | ------------------------ |
+| **Docker 실행 중** | Docker 컨테이너 | ✅ 자동 인식           | ❌ 불필요                |
+| **Docker 미실행**  | 로컬 Deno       | ❌ 인식 못함           | ✅ 필요                  |
+
+- **Docker가 켜져 있을 때**: CLI가 Docker 컨테이너 내에서 번들링을 수행하며,
+  컨테이너가 `supabase/functions/deno.json`을 자동으로 인식함. 추가 플래그 없이
+  배포 가능.
+- **Docker가 꺼져 있을 때**: CLI가 로컬에 설치된 Deno를 사용하여 번들링하며, 이
+  경우 `deno.json`의 import map을 자동으로 인식하지 않음. `--import-map`
+  플래그로 경로를 명시적으로 전달해야 함.
 
 ## ✅ 해결 방법
 
-### 방법 1: `--import-map` 플래그 지정 (즉시 해결)
+### 방법 1: Docker를 실행한 상태에서 배포 (권장)
 
-배포 명령에 `--import-map` 옵션으로 `deno.json` 경로를 명시적으로 지정함:
+Docker Desktop 등을 실행한 상태에서 배포하면 추가 플래그 없이 정상 동작:
+
+```bash
+pnpm supabase functions deploy search
+```
+
+### 방법 2: `--import-map` 플래그 지정 (Docker 없이 배포 시)
+
+Docker를 사용할 수 없는 환경에서는 `--import-map` 옵션으로 `deno.json` 경로를
+명시적으로 지정:
 
 ```bash
 pnpm supabase functions deploy search --import-map .\supabase\functions\deno.json
 ```
 
-### 방법 2: 소스코드에서 직접 npm specifier 사용 (근본 해결)
+### 방법 3: 소스코드에서 직접 npm specifier 사용 (import map 의존 제거)
 
 import map에 의존하지 않고, 소스코드에서 직접 `npm:` specifier를 사용하면
-`--import-map` 없이도 배포가 가능함:
+Docker/`--import-map` 여부와 무관하게 배포 가능:
 
 ```ts
 // Before (import map 의존)
@@ -58,15 +77,15 @@ import { compileExpression } from "filtrex";
 import { compileExpression } from "npm:filtrex@^3.1.0";
 ```
 
-이 경우 `deno.json`의 import map이 필요 없어지므로 deploy 시 추가 플래그도
-불필요. 단, 버전 관리가 소스코드 곳곳에 분산되는 단점이 있음.
+단, 버전 관리가 소스코드 곳곳에 분산되는 단점이 있음.
 
 ## 현재 상태
 
-- **방법 1 적용**: `--import-map` 플래그를 사용하여 배포 성공 확인.
+- **방법 2 적용**: `--import-map` 플래그를 사용하여 배포 성공 확인.
+- Docker 실행 환경에서는 플래그 없이도 정상 배포됨을 확인.
 
 ---
 
-> **참고**: `supabase functions serve`는 로컬에서
+> **참고**: `supabase functions serve`는 Docker 여부와 관계없이
 > `supabase/functions/deno.json`을 자동으로 인식하기 때문에 이 문제가 발생하지
 > 않음. deploy 시에만 주의가 필요함.
