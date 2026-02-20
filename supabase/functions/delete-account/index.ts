@@ -48,7 +48,12 @@ Deno.serve(async (req) => {
             error: userError,
         } = await anonClient.auth.getUser();
 
-        if (userError || !user) {
+        if (userError) {
+            console.error("[DeleteAccount] getUser failed:", userError.message);
+            throw new ApiError(401, "Unauthorized. Please sign in.");
+        }
+        if (!user) {
+            console.warn("[DeleteAccount] getUser returned no user");
             throw new ApiError(401, "Unauthorized. Please sign in.");
         }
 

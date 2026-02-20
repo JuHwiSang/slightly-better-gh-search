@@ -43,7 +43,15 @@ export async function getGitHubToken(
     error: userError,
   } = await supabaseClient.auth.getUser();
 
-  if (userError || !user) {
+  if (userError) {
+    console.error("[Auth] getUser failed:", userError.message);
+    throw new ApiError(
+      401,
+      "Unauthorized. Please sign in with GitHub.",
+    );
+  }
+  if (!user) {
+    console.warn("[Auth] getUser returned no user");
     throw new ApiError(
       401,
       "Unauthorized. Please sign in with GitHub.",
@@ -60,7 +68,15 @@ export async function getGitHubToken(
     .eq("name", secretName)
     .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    console.error("[Auth] Vault query failed for user", user.id, ":", error.message);
+    throw new ApiError(
+      401,
+      "GitHub token not found. Please re-authenticate with GitHub.",
+    );
+  }
+  if (!data?.decrypted_secret) {
+    console.warn("[Auth] GitHub token not found in Vault for user:", user.id);
     throw new ApiError(
       401,
       "GitHub token not found. Please re-authenticate with GitHub.",

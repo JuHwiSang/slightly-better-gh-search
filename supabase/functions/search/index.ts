@@ -69,13 +69,18 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Track request context for error logging (declared outside try for catch access)
+  let query = "";
+  let cursor: string | null = null;
+  let limit = config.search.defaultLimit;
+
   try {
     // Parse request body (POST)
     const body = await req.json();
-    const query = body.query || "";
+    query = body.query || "";
     const filter = body.filter || "";
-    const cursor = body.cursor || null;
-    const limit = parseInt(
+    cursor = body.cursor || null;
+    limit = parseInt(
       body.limit?.toString() || config.search.defaultLimit.toString(),
       10,
     );
@@ -179,7 +184,10 @@ Deno.serve(async (req) => {
         }
 
         const repoInfo = repoMap.get(item.repository.full_name);
-        if (!repoInfo) continue; // Skip if repo info fetch failed
+        if (!repoInfo) {
+          console.warn(`[Search] Skipping item — repo info missing: ${item.repository.full_name}`);
+          continue; // Skip if repo info fetch failed
+        }
 
         // Apply filter
         if (filter && filter.trim() !== "") {
@@ -254,7 +262,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
-    console.error("Search function error:", error);
+    console.error(
+      "[Search] Unhandled error",
+      `\n  query="${query}", cursor=${cursor}, limit=${limit}`,
+      "\n  Error:",
+      error,
+    );
 
     // Handle ApiError with specific status codes
     if (error instanceof ApiError) {

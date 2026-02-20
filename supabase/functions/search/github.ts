@@ -64,7 +64,13 @@ export async function fetchCodeSearch(
   // Handle errors
   if (!searchResponse.ok) {
     const errorText = await searchResponse.text();
-    console.error("GitHub API error:", errorText);
+    console.error(
+      `[GitHub] Code search API error (query="${query}", page=${page}):`,
+      searchResponse.status,
+      searchResponse.statusText,
+      "\n  Body:",
+      errorText,
+    );
     throw new Error(
       `GitHub API error: ${searchResponse.status} ${searchResponse.statusText}`,
     );
@@ -134,7 +140,14 @@ export async function fetchRepository(
 
   // Handle errors
   if (!repoResponse.ok) {
-    console.warn(`Failed to fetch repo info for ${fullName}`);
+    const errorText = await repoResponse.text();
+    console.warn(
+      `[GitHub] Repo fetch failed for ${fullName}:`,
+      repoResponse.status,
+      repoResponse.statusText,
+      "\n  Body:",
+      errorText,
+    );
     return null;
   }
 
