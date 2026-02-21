@@ -4,8 +4,8 @@ import {
   assertResponseStatus,
   callEdgeFunction,
   cleanupTestUser,
-  createAdminClient,
   createTestUser,
+  createVaultSecret,
   getTestEnv,
   isRedisConfigured,
   type TestUser,
@@ -20,19 +20,8 @@ async function setupTestUserWithToken(): Promise<TestUser> {
   const testUser = await createTestUser();
   const env = getTestEnv();
 
-  // Store GitHub token directly in Vault via admin client
-  // (store_github_token RPC requires auth.uid(), not available with service_role)
-  const adminClient = createAdminClient();
   const secretName = `github_token_${testUser.id}`;
-  const { error } = await adminClient
-    .schema("vault")
-    .rpc("create_secret", {
-      new_secret: env.githubToken,
-      new_name: secretName,
-    });
-  if (error) {
-    throw new Error(`Failed to store token during setup: ${error.message}`);
-  }
+  await createVaultSecret(env.githubToken, secretName);
 
   return testUser;
 }

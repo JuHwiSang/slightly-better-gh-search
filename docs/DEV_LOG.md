@@ -4,7 +4,69 @@
 
 ---
 
+## 2026-02-21
+
+### Vault 스키마 직접 접근 제거 → RPC 래핑 전환
+
+#### Overview
+
+- **변경사항**: `.schema("vault")` 직접 접근을 모두 `public` 스키마 RPC 래핑 함수로 전환
+- **목적**: Supabase Cloud에서는 vault 스키마를 API에 노출할 수 없으므로 (로컬 전용),
+  프로덕션 호환성 확보
+- **config.toml**: `[api]` 섹션 제거 (vault 스키마 노출 해제)
+
+#### Implementation Details
+
+**1. 새 RPC 함수 3개** (`20260221081302_add_vault_rpc_wrappers.sql`):
+
+| 함수 | 용도 | 권한 |
+|------|------|------|
+| `get_secret_by_name(secret_name)` → `text` | 시크릿 조회 | service_role |
+| `create_vault_secret(p_secret, p_name)` → `uuid` | 시크릿 생성 | service_role |
+| `vault_secret_exists(secret_name)` → `boolean` | 존재 확인 | service_role |
+
+모두 `SECURITY DEFINER`, `search_path = public, vault`로 vault 내부 함수/뷰에 접근.
+
+**2. Edge Function 변경**:
+
+- `search/auth.ts`: `.schema("vault").from("decrypted_secrets")` →
+  `.rpc("get_secret_by_name")`
+
+**3. 테스트 유틸 변경** (`test_utils.ts`):
+
+- `createVaultSecret()`, `vaultSecretExists()` 헬퍼 추가
+- `search/index_test.ts`, `delete-account/index_test.ts`에서 사용
+
+#### Files Modified
+
+- `supabase/migrations/20260221081302_add_vault_rpc_wrappers.sql` — 신규
+- `supabase/config.toml` — `[api]` 섹션 제거
+- `supabase/functions/search/auth.ts` — RPC 호출로 전환
+- `supabase/functions/test_utils.ts` — 헬퍼 함수 추가
+- `supabase/functions/search/index_test.ts` — vault 직접 접근 제거
+- `supabase/functions/delete-account/index_test.ts` — vault 직접 접근 제거
+- `GEMINI.md` — Vault Access 패턴 업데이트
+
+---
+
 ## 2026-02-20
+
+### seed.sql 실행 에러 수정
+
+#### Overview
+
+- **문제**: dbdev 설치 스크립트를 migration → seed.sql로 옮긴 후, `supabase db
+  reset` 시 `pgtle 스키마 없음` / `dbdev 스키마 없음` 에러 발생
+- **원인**: seed.sql 최상위 레벨에서 `SELECT`로 함수를 호출하면 스키마 해석 문제 발생
+  (정확한 내부 메커니즘 불명확, `--debug`로도 원인 안 나옴)
+- **해결**: `DO $$ BEGIN ... END $$;` 블록으로 감싸고 `SELECT` → `PERFORM` 전환
+- **참고**: [TRB-012](troubleshooting/TRB-012-seed-sql-select-in-top-level.md)
+
+#### Files Modified
+
+- `supabase/seed.sql` — DO 블록 + PERFORM으로 전환
+
+---
 
 ### pgTAP을 이용한 RPC 함수 단위 테스트
 
@@ -21,7 +83,7 @@
 
 **1. 테스트 인프라 구축**
 
-Migration (`20260219164536_install_dbdev_with_test_helpers.sql`):
+Seed (`supabase/seed.sql`, 원래 migration이었으나 이동됨 — [TRB-012](troubleshooting/TRB-012-seed-sql-select-in-top-level.md) 참고):
 
 - `pg_tle` + `http` extension 활성화
 - GitHub API에서 `dbdev` SQL 다운로드 → `pgtle.install_extension()` 설치
@@ -55,7 +117,7 @@ Migration (`20260219164536_install_dbdev_with_test_helpers.sql`):
 
 #### Files Created
 
-- `supabase/migrations/20260219164536_install_dbdev_with_test_helpers.sql` [NEW]
+- `supabase/seed.sql` (migration에서 이동됨)
 - `supabase/tests/rpc-store-github-token.sql` [NEW]
 - `supabase/tests/rpc-delete-secret-by-name.sql` [NEW]
 - `docs/troubleshooting/TRB-011-pgtap-database-testing.md` [NEW]

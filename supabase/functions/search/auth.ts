@@ -58,15 +58,11 @@ export async function getGitHubToken(
     );
   }
 
-  // Retrieve token from Vault
+  // Retrieve token from Vault via RPC
   const secretName = `github_token_${user.id}`;
   const adminClient = createAdminClient();
   const { data, error } = await adminClient
-    .schema("vault")
-    .from("decrypted_secrets")
-    .select("decrypted_secret")
-    .eq("name", secretName)
-    .maybeSingle();
+    .rpc("get_secret_by_name", { secret_name: secretName });
 
   if (error) {
     console.error("[Auth] Vault query failed for user", user.id, ":", error.message);
@@ -75,7 +71,7 @@ export async function getGitHubToken(
       "GitHub token not found. Please re-authenticate with GitHub.",
     );
   }
-  if (!data?.decrypted_secret) {
+  if (!data) {
     console.warn("[Auth] GitHub token not found in Vault for user:", user.id);
     throw new ApiError(
       401,
@@ -83,5 +79,5 @@ export async function getGitHubToken(
     );
   }
 
-  return data.decrypted_secret;
+  return data as string;
 }

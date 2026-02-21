@@ -25,7 +25,3 @@ entrypoint = "./functions/ping/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/delete-account/index.ts"
-
-[api]
-enabled = true
-schemas = ["public", "vault"]

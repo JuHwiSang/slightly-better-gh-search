@@ -276,49 +276,35 @@ const token2 = user.user_metadata?.provider_token; // ❌ undefined
 
 ### Supabase Vault Access
 
+Supabase Cloud에서는 vault 스키마를 API에 직접 노출할 수 없으므로,
+public 스키마의 RPC 래핑 함수를 통해 접근한다.
+
 ```typescript
-// ✅ 읽기: vault.decrypted_secrets 뷰 사용
-// ✅ 쓰기: vault.create_secret(), vault.update_secret() RPC 함수 사용
-import { createAdminClient } from "./auth.ts";
-
+// ✅ 읽기: get_secret_by_name RPC (service_role only)
 const adminClient = createAdminClient();
-const secretName = `github_token_${user.id}`;
-
-// Upsert pattern: 읽기 → 쓰기 분리
-const { data: existing } = await adminClient
-  .schema('vault')
-  .from('decrypted_secrets') // ✅ 읽기: 뷰 사용
-  .select('id')
-  .eq('name', secretName)
-  .maybeSingle();
-
-if (existing) {
-  // ✅ 쓰기: RPC 함수
-  await adminClient.rpc('vault.update_secret', {
-    id: existing.id,
-    secret: providerToken
-  });
-} else {
-  // ✅ 쓰기: RPC 함수
-  await adminClient.rpc('vault.create_secret', {
-    secret: providerToken,
-    name: secretName
-  });
-}
-
-// ✅ 읽기: 뷰 사용
 const { data } = await adminClient
-  .schema('vault')
-  .from('decrypted_secrets')
-  .select('decrypted_secret')
-  .eq('name', secretName)
-  .maybeSingle();
+  .rpc("get_secret_by_name", { secret_name: secretName });
+const githubToken = data as string;
 
-const githubToken = data?.decrypted_secret;
+// ✅ 생성: create_vault_secret RPC (service_role only)
+await adminClient.rpc("create_vault_secret", {
+  p_secret: token,
+  p_name: secretName,
+});
 
-// ❌ Don't use direct INSERT/UPDATE on vault.secrets
-await adminClient.schema('vault').from('secrets').insert(...); // ❌ Permission error
-await adminClient.schema('vault').from('secrets').update(...); // ❌ Permission error
+// ✅ 존재 확인: vault_secret_exists RPC (service_role only)
+const { data: exists } = await adminClient
+  .rpc("vault_secret_exists", { secret_name: secretName });
+
+// ✅ 삭제: delete_secret_by_name RPC (service_role only)
+await adminClient.rpc("delete_secret_by_name", { secret_name: secretName });
+
+// ✅ 사용자 토큰 저장: store_github_token RPC (authenticated, auth.uid() 자동 스코핑)
+await supabase.rpc("store_github_token", { p_token: providerToken });
+
+// ❌ Don't use .schema("vault") — Cloud에서 vault 스키마 API 노출 불가
+await adminClient.schema('vault').from('decrypted_secrets')...; // ❌
+await adminClient.schema('vault').rpc('create_secret', ...);   // ❌
 ```
 
 ### Deno Test Response Cleanup

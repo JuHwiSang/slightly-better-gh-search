@@ -117,6 +117,41 @@ export async function createTestUser(): Promise<TestUser> {
 }
 
 /**
+ * Create a Vault secret via RPC (service_role only)
+ */
+export async function createVaultSecret(
+  secret: string,
+  name: string,
+): Promise<void> {
+  const adminClient = createAdminClient();
+  const { error } = await adminClient.rpc("create_vault_secret", {
+    p_secret: secret,
+    p_name: name,
+  });
+  if (error) {
+    throw new Error(`Failed to create vault secret ${name}: ${error.message}`);
+  }
+}
+
+/**
+ * Check if a Vault secret exists via RPC (service_role only)
+ */
+export async function vaultSecretExists(
+  secretName: string,
+): Promise<boolean> {
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient.rpc("vault_secret_exists", {
+    secret_name: secretName,
+  });
+  if (error) {
+    throw new Error(
+      `Failed to check vault secret ${secretName}: ${error.message}`,
+    );
+  }
+  return data as boolean;
+}
+
+/**
  * Delete a Vault secret using a custom RPC function.
  */
 export async function cleanupVaultSecret(secretName: string): Promise<void> {

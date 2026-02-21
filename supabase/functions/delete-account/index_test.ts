@@ -6,8 +6,10 @@ import {
     cleanupTestUser,
     createAdminClient,
     createTestUser,
+    createVaultSecret,
     getTestEnv,
     type TestUser,
+    vaultSecretExists,
 } from "../test_utils.ts";
 
 /**
@@ -19,17 +21,8 @@ async function setupTestUserWithToken(): Promise<TestUser> {
     const testUser = await createTestUser();
     const env = getTestEnv();
 
-    const adminClient = createAdminClient();
     const secretName = `github_token_${testUser.id}`;
-    const { error } = await adminClient
-        .schema("vault")
-        .rpc("create_secret", {
-            new_secret: env.githubToken,
-            new_name: secretName,
-        });
-    if (error) {
-        throw new Error(`Failed to store token during setup: ${error.message}`);
-    }
+    await createVaultSecret(env.githubToken, secretName);
 
     return testUser;
 }
@@ -39,19 +32,6 @@ async function userExists(userId: string): Promise<boolean> {
     const adminClient = createAdminClient();
     const { data, error } = await adminClient.auth.admin.getUserById(userId);
     if (error || !data.user) return false;
-    return true;
-}
-
-// Helper to check if a Vault secret exists (via admin)
-async function vaultSecretExists(secretName: string): Promise<boolean> {
-    const adminClient = createAdminClient();
-    const { data, error } = await adminClient
-        .schema("vault")
-        .from("decrypted_secrets")
-        .select("id")
-        .eq("name", secretName)
-        .maybeSingle();
-    if (error || !data) return false;
     return true;
 }
 
