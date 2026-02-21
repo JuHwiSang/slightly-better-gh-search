@@ -47,6 +47,27 @@
 - `supabase/functions/delete-account/index_test.ts` — vault 직접 접근 제거
 - `GEMINI.md` — Vault Access 패턴 업데이트
 
+### Vault RPC Wrapper pgTAP 테스트 추가
+
+#### Overview
+
+- **변경사항**: `get_secret_by_name`, `create_vault_secret`, `vault_secret_exists` 3개 RPC에 대한 pgTAP 테스트 추가
+- **목적**: 프로젝트 컨벤션 준수 (모든 RPC에 pgTAP 테스트 존재) 및 `SECURITY DEFINER` + 권한 설정 검증
+
+#### Test Coverage (12 tests)
+
+| 카테고리 | 테스트 수 | 내용 |
+|----------|-----------|------|
+| Function metadata | 6 | `function_returns`, `is_definer` × 3 함수 |
+| `create_vault_secret` | 1 | service_role로 시크릿 생성 |
+| `get_secret_by_name` | 2 | 존재하는 시크릿 조회, 미존재 시 NULL |
+| `vault_secret_exists` | 2 | 존재 → true, 미존재 → false |
+| 권한 검증 | 1 | authenticated 유저 호출 시 permission denied |
+
+#### Files Modified
+
+- `supabase/tests/rpc-vault-wrappers.sql` — 신규
+
 ---
 
 ## 2026-02-20
