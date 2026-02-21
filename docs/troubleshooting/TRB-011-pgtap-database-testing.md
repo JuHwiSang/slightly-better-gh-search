@@ -54,6 +54,6 @@ npm 같은 커뮤니티 extension 패키지 매니저. 원격에서 extension을
 
 ## 관련 파일
 
-- Migration:
-  `supabase/migrations/20260219164536_install_dbdev_with_test_helpers.sql`
+- Seed: `supabase/seed.sql` (dbdev + test_helpers 설치)
+  - 원래 migration이었으나 seed.sql로 이동됨 — [TRB-012](TRB-012-seed-sql-select-in-top-level.md) 참고
 - Tests: `supabase/tests/rpc-*.sql`
