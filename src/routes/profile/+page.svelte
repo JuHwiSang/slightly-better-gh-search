@@ -7,7 +7,7 @@
 	import IconLucideArrowLeft from '~icons/lucide/arrow-left';
 	import IconLucideAlertTriangle from '~icons/lucide/alert-triangle';
 	import ProfileCard from '$lib/components/ProfileCard.svelte';
-	import UsageCard from '$lib/components/UsageCard.svelte';
+
 	import { authState } from '$lib/stores/auth.svelte';
 
 	let deleteDialog: HTMLDialogElement | undefined;
@@ -96,8 +96,6 @@
 			isGitHubConnected={authState.isAuthenticated}
 		/>
 
-		<!-- Usage Card -->
-		<UsageCard />
 
 		<!-- Action Buttons -->
 		<section class="flex flex-col gap-4">

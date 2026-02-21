@@ -100,16 +100,6 @@
 						</div>
 					</div>
 
-					<div class="border-b border-terminal-border p-3">
-						<div class="mb-1 text-xs text-text-muted">API Usage</div>
-						<div class="flex items-center gap-2">
-							<div class="h-2 flex-1 overflow-hidden rounded-full bg-gray-700">
-								<div class="h-full rounded-full bg-accent-blue" style="width: 75%;"></div>
-							</div>
-							<span class="font-mono text-xs text-white">75%</span>
-						</div>
-					</div>
-
 					<div class="p-2">
 						<a
 							href="/profile"
