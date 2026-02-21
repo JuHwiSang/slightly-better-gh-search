@@ -113,7 +113,7 @@
 		<!-- Results List -->
 		{#if results.length > 0}
 			<div class="flex flex-col gap-8">
-				{#each results as result (result.sha)}
+				{#each results as result (result.html_url)}
 					<SearchResultCard {result} />
 				{/each}
 			</div>
