@@ -60,26 +60,19 @@
 	/**
 	 * Extract code snippet from text matches or use default
 	 */
-	function getCodeSnippet(): { startLine: number; lines: string[] } {
+	function getCodeSnippet(): string[] {
 		// Use the specific textMatch if provided, otherwise fall back to first match
 		const match = textMatch ?? result.text_matches?.find((tm) => tm.fragment);
 
 		if (!match?.fragment) {
-			return {
-				startLine: 1,
-				lines: ['// No preview available']
-			};
+			return ['// No preview available'];
 		}
 
 		// Split fragment into lines
-		const lines = match.fragment.split('\n').slice(0, 5); // Show max 5 lines
-		return {
-			startLine: 1, // GitHub doesn't provide line numbers in text_matches
-			lines
-		};
+		return match.fragment.split('\n').slice(0, 5); // Show max 5 lines
 	}
 
-	const codeSnippet = $derived(getCodeSnippet());
+	const codeLines = $derived(getCodeSnippet());
 
 	/**
 	 * Apply text-match highlighting to a code line
@@ -91,7 +84,7 @@
 		if (!activeMatch || activeMatch.property !== 'content') return escapeHtml(line);
 
 		// Find text matches for this line
-		const lineStart = codeSnippet.lines.slice(0, lineIndex).join('\n').length + lineIndex;
+		const lineStart = codeLines.slice(0, lineIndex).join('\n').length + (lineIndex > 0 ? 1 : 0);
 		const lineEnd = lineStart + line.length;
 
 		// Collect all matches that overlap with this line
@@ -177,20 +170,10 @@
 	<div
 		class="custom-scrollbar overflow-hidden overflow-x-auto rounded-md border border-terminal-border bg-code-bg font-mono text-xs leading-relaxed sm:text-sm"
 	>
-		<div class="flex py-2">
-			<!-- Line Numbers -->
-			<div class="flex flex-col border-r border-terminal-border bg-code-bg select-none">
-				{#each codeSnippet.lines as _, index}
-					<span class="line-number">{codeSnippet.startLine + index}</span>
-				{/each}
-			</div>
-
-			<!-- Code Lines -->
-			<div class="flex flex-col px-4 whitespace-pre text-slate-300">
-				{#each codeSnippet.lines as line, index}
-					<div>{@html highlightLine(line, index)}</div>
-				{/each}
-			</div>
+		<div class="flex flex-col px-4 py-2 whitespace-pre text-slate-300">
+			{#each codeLines as line, index}
+				<div>{@html highlightLine(line, index)}</div>
+			{/each}
 		</div>
 	</div>
 
@@ -205,11 +188,3 @@
 	</div>
 </article>
 
-<style>
-	.line-number {
-		padding: 0 0.75rem;
-		text-align: right;
-		color: #6e7681;
-		user-select: none;
-	}
-</style>
