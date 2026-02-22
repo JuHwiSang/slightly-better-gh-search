@@ -57,6 +57,7 @@ export async function getGitHubToken(
       "Unauthorized. Please sign in with GitHub.",
     );
   }
+  console.log(`[Auth] User verified: ${user.id}`);
 
   // Retrieve token from Vault via RPC
   const secretName = `github_token_${user.id}`;
@@ -78,6 +79,7 @@ export async function getGitHubToken(
       "GitHub token not found. Please re-authenticate with GitHub.",
     );
   }
+  console.log(`[Auth] GitHub token retrieved for user: ${user.id}`);
 
   return data as string;
 }

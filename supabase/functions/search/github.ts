@@ -79,6 +79,9 @@ export async function fetchCodeSearch(
   // Parse new data
   const searchData: GitHubCodeSearchResponse = await searchResponse.json();
   const newEtag = searchResponse.headers.get("ETag") || undefined;
+  console.log(
+    `[GitHub] Code search OK (query="${query}", page=${page}): ${searchData.total_count} total, ${searchData.items.length} items, rate_limit_remaining=${searchResponse.headers.get("X-RateLimit-Remaining")}`,
+  );
 
   // Cache the new data with ETag (TTL from config for volatile search results)
   await setCachedData(
@@ -154,6 +157,9 @@ export async function fetchRepository(
   // Parse new data
   const repoData: RepositoryInfo = await repoResponse.json();
   const repoEtag = repoResponse.headers.get("ETag") || undefined;
+  console.log(
+    `[GitHub] Repo fetch OK: ${fullName}, rate_limit_remaining=${repoResponse.headers.get("X-RateLimit-Remaining")}`,
+  );
 
   // Cache the new data with ETag (TTL from config for stable repo metadata)
   await setCachedData(
