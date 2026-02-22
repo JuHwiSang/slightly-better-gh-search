@@ -5,7 +5,7 @@
 	import InfiniteScroll from '$lib/components/InfiniteScroll.svelte';
 	import { supabase } from '$lib/supabase';
 	import { FunctionsHttpError } from '@supabase/supabase-js';
-	import type { SearchResponse, SearchResultItem } from '$lib/types/search';
+	import type { SearchResponse, SearchResultItem, TextMatch } from '$lib/types/search';
 
 	// SSR data from +page.server.ts
 	const props = $props();
@@ -72,6 +72,22 @@
 		}
 	}
 
+	// Flatten results: one card per text_match
+	type FlattenedResult = { result: SearchResultItem; textMatch: TextMatch; key: string };
+	let flattenedResults = $derived<FlattenedResult[]>(
+		results.flatMap((result) => {
+			const contentMatches = result.text_matches?.filter((tm) => tm.fragment) ?? [];
+			if (contentMatches.length === 0) {
+				return [{ result, textMatch: undefined as unknown as TextMatch, key: result.html_url }];
+			}
+			return contentMatches.map((tm, i) => ({
+				result,
+				textMatch: tm,
+				key: `${result.html_url}::${i}`
+			}));
+		})
+	);
+
 	function loadMore() {
 		if (nextCursor && !isLoading) {
 			loadResults(nextCursor);
@@ -113,8 +129,8 @@
 		<!-- Results List -->
 		{#if results.length > 0}
 			<div class="flex flex-col gap-8">
-				{#each results as result (result.html_url)}
-					<SearchResultCard {result} />
+				{#each flattenedResults as { result, textMatch, key } (key)}
+					<SearchResultCard {result} {textMatch} />
 				{/each}
 			</div>
 
