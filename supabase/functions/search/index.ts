@@ -1,8 +1,7 @@
 import { evaluateFilter, validateFilter } from "./filter.ts";
 import type { SearchResponse, SearchResultItem } from "./types.ts";
-import { createRedisClient } from "./cache.ts";
 import { generateCorsHeaders, parseCorsConfig } from "./cors.ts";
-import { createAnonClient, getGitHubToken } from "./auth.ts";
+import { createAdminClient, createAnonClient, getGitHubToken } from "./auth.ts";
 import { fetchCodeSearch, fetchRepositories } from "./github.ts";
 import { ApiError } from "./errors.ts";
 import { config } from "./config.ts";
@@ -108,8 +107,8 @@ Deno.serve(async (req) => {
     const supabaseClient = createAnonClient(authHeader);
     const githubToken = await getGitHubToken(supabaseClient);
 
-    // Initialize Redis client (null if not configured)
-    const redis = createRedisClient();
+    // Initialize Supabase admin client for cache operations
+    const cacheClient = createAdminClient();
 
     // Parse and validate cursor
     const cursorData = parseCursor(cursor);
@@ -151,7 +150,7 @@ Deno.serve(async (req) => {
     ) {
       // Fetch code search results from GitHub
       const searchData = await fetchCodeSearch(
-        redis,
+        cacheClient,
         githubToken,
         query,
         currentPage,
@@ -172,7 +171,7 @@ Deno.serve(async (req) => {
         ...new Set(searchData.items.map((item) => item.repository.full_name)),
       ];
 
-      const repoMap = await fetchRepositories(redis, githubToken, uniqueRepos);
+      const repoMap = await fetchRepositories(cacheClient, githubToken, uniqueRepos);
 
       // Apply filter and build result items
       for (let i = 0; i < searchData.items.length; i++) {

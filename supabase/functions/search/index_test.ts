@@ -7,7 +7,6 @@ import {
   createTestUser,
   createVaultSecret,
   getTestEnv,
-  isRedisConfigured,
   type TestUser,
 } from "../test_utils.ts";
 
@@ -358,9 +357,7 @@ Deno.test("search: should return 401 when GitHub token not found in Vault", asyn
   }
 });
 
-Deno.test("search: should use cache when available", {
-  ignore: !isRedisConfigured(),
-}, async () => {
+Deno.test("search: should use cache when available", async () => {
   let testUser: TestUser | null = null;
   let response1: Response | null = null;
   let response2: Response | null = null;

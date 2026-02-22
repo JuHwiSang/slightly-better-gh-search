@@ -43,7 +43,7 @@ ADR 001. 시스템 아키텍처 결정
 - SvelteKit으로 기본적인 프론트를 만든다.
 - Supabase를 사용해서 Github OAuth 로그인을 구현한다.
 - Supabase Edge Function을 사용해서 고급 검색 기능을 구현한다.
-- Upstash의 Redis를 Supabase에서 사용한다.
+- Supabase DB를 캐시 저장소로 사용한다 (ADR-008 참조).
 - Github Action을 사용해서 Supabase Edge Function에 자동 배포한다.
 - Vercel을 사용해서 Github Repository를 자동으로 배포한다.
 - 이 모든 것은 기본적으로 무료 티어로 사용 가능하다.
@@ -55,8 +55,9 @@ ADR 001. 시스템 아키텍처 결정
 # 영향
 
 - 시스템 아키텍처의 커다란 틀이 결정된다.
-- SvelteKit, Supabase, Upstash를 사용해보는 경험을 가질 수 있게 된다.
+- SvelteKit, Supabase를 사용해보는 경험을 가질 수 있게 된다.
 - Spring 기술스택 경험과 휴대성을 포기한다.
 
 # 변경 사항
 - 26. 01. 12) Github SSO Token의 사용 범위 제한 내용 추가
+- 26. 02. 22) Upstash Redis → Supabase DB 캐시 마이그레이션 (ADR-008)

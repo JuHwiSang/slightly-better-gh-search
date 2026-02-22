@@ -93,13 +93,13 @@ await storeTokenFunction({ provider_token: testGitHubToken });
 
 ## 4. 로컬 Supabase CLI + 실제 외부 서비스 사용
 
-**로컬 Supabase**와 **실제 Upstash Redis, GitHub API**를 사용합니다.
+**로컬 Supabase**와 **실제 GitHub API**를 사용합니다.
 
 ### 선택 이유
 
 - ✅ **Supabase 로컬**: Auth, Vault 등 Supabase 서비스 완전 재현
-- ✅ **Redis 실제 사용**: 개발 환경과 동일한 Redis 인스턴스 (캐싱 동작 검증)
 - ✅ **GitHub API 실제 사용**: PAT로 실제 검색 테스트 가능
+- ✅ **DB 캐시 자동 사용**: 로컬 Supabase DB가 캐시 역할 (별도 설정 불필요)
 - ✅ **설정 단순화**: 별도 모킹 인프라 불필요
 
 ### 수동 설정 필요
@@ -131,14 +131,14 @@ await storeTokenFunction({ provider_token: testGitHubToken });
 
 - 테스트 실행 속도 느림 (외부 API 호출)
 - 수동 설정 필요 (service role key)
-- 외부 서비스 의존성 (Redis, GitHub API)
+- 외부 서비스 의존성 (GitHub API)
 - 세밀한 단위 로직 테스트 불가
 
 ## 기술 스택 추가
 
 - **Deno**: 테스트 러너
 - **로컬 Supabase CLI**: Auth, Vault 서비스
-- **Upstash Redis**: 캐싱 테스트 (개발 환경과 동일)
+- **Supabase DB 캐시**: 로컬 Supabase에서 자동 제공
 
 ## 테스트 커버리지
 
@@ -155,7 +155,7 @@ await storeTokenFunction({ provider_token: testGitHubToken });
 - 기본 검색
 - 필터 표현식 적용
 - 페이지네이션 (cursor)
-- Redis 캐싱 동작
+- DB 캐싱 동작
 - ETag 기반 조건부 요청
 - `incomplete_results` 플래그
 - `text_matches` 반환
@@ -164,3 +164,4 @@ await storeTokenFunction({ provider_token: testGitHubToken });
 # 변경 사항
 
 - 2026-01-22: 초안 작성 및 승인
+- 2026-02-22: Upstash Redis → Supabase DB 캐시 마이그레이션 반영 (ADR-008)

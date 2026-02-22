@@ -1,5 +1,4 @@
-import { Redis } from "@upstash/redis";
-import { config } from "./config.ts";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Cached data structure with ETag support
@@ -7,33 +6,6 @@ import { config } from "./config.ts";
 export interface CachedData<T> {
   data: T;
   etag?: string;
-}
-
-/**
- * Initialize Upstash Redis client
- * Returns null if Redis credentials are not configured
- */
-export function createRedisClient(): Redis | null {
-  if (!config.isRedisEnabled) {
-    console.warn("Redis credentials not configured. Caching disabled.");
-    return null;
-  }
-
-  try {
-    return new Redis({
-      url: config.redis.url!,
-      token: config.redis.token!,
-      retry: {
-        retries: 0,
-      },
-      config: {
-        signal: AbortSignal.timeout(2000), // 2초 넘으면 그냥 실패 처리
-      },
-    });
-  } catch (error) {
-    console.error("Failed to initialize Redis client:", error);
-    return null;
-  }
 }
 
 /**
@@ -55,49 +27,81 @@ export function generateCacheKey(
 }
 
 /**
- * Get cached data from Redis
- * Returns null if cache miss or Redis error
+ * Get cached data from Supabase DB
+ * Returns null if cache miss, expired, or DB error
  */
 export async function getCachedData<T>(
-  redis: Redis | null,
+  supabase: SupabaseClient | null,
   key: string,
 ): Promise<CachedData<T> | null> {
-  if (!redis) return null;
+  if (!supabase) return null;
 
   try {
-    const cached = await redis.get<CachedData<T>>(key);
-    if (cached) {
-      console.log(`Cache hit: ${key}`);
-      return cached;
+    const { data, error } = await supabase
+      .from("cache")
+      .select("data, etag")
+      .eq("key", key)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+
+    if (error) {
+      console.error(`Cache read error for key ${key}:`, error.message);
+      return null;
     }
-    console.log(`Cache miss: ${key}`);
-    return null;
+    if (!data) {
+      console.log(`Cache miss: ${key}`);
+      return null;
+    }
+
+    console.log(`Cache hit: ${key}`);
+    return {
+      data: data.data as T,
+      etag: data.etag ?? undefined,
+    };
   } catch (error) {
-    console.error(`Redis get error for key ${key}:`, error);
+    console.error(`Cache get exception for key ${key}:`, error);
     return null;
   }
 }
 
 /**
- * Set cached data in Redis with TTL
+ * Set cached data in Supabase DB with TTL
+ * Uses UPSERT so repeated writes for the same key refresh the expiry.
+ * Errors are swallowed — cache failure must never break the main request.
  * @param ttlSeconds - TTL in seconds (required)
  */
 export async function setCachedData<T>(
-  redis: Redis | null,
+  supabase: SupabaseClient | null,
   key: string,
   data: T,
   etag: string | undefined,
   ttlSeconds: number,
 ): Promise<void> {
-  if (!redis) return;
+  if (!supabase) return;
 
   try {
-    const cachedData: CachedData<T> = { data, etag };
-    await redis.setex(key, ttlSeconds, JSON.stringify(cachedData));
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+    const { error } = await supabase
+      .from("cache")
+      .upsert(
+        {
+          key,
+          data,
+          etag: etag ?? null,
+          expires_at: expiresAt,
+          created_at: new Date().toISOString(),
+        },
+        { onConflict: "key" },
+      );
+
+    if (error) {
+      console.error(`Cache write error for key ${key}:`, error.message);
+      return;
+    }
     console.log(
       `Cache set: ${key} (TTL: ${ttlSeconds}s, ETag: ${etag || "none"})`,
     );
   } catch (error) {
-    console.error(`Redis set error for key ${key}:`, error);
+    console.error(`Cache set exception for key ${key}:`, error);
   }
 }

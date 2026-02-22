@@ -34,16 +34,6 @@ export function getTestEnv() {
 }
 
 /**
- * Check if Redis is configured in the environment
- */
-export function isRedisConfigured(): boolean {
-  return (
-    !!Deno.env.get("UPSTASH_REDIS_REST_URL") &&
-    !!Deno.env.get("UPSTASH_REDIS_REST_TOKEN")
-  );
-}
-
-/**
  * Create Supabase admin client with service role key
  */
 export function createAdminClient(): SupabaseClient {

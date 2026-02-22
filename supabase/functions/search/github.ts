@@ -1,4 +1,4 @@
-import type { Redis } from "@upstash/redis";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GitHubCodeSearchResponse, RepositoryInfo } from "./types.ts";
 import { generateCacheKey, getCachedData, setCachedData } from "./cache.ts";
 import { config } from "./config.ts";
@@ -9,7 +9,7 @@ const GITHUB_API_BASE = "https://api.github.com";
  * Fetch code search results from GitHub API with caching
  */
 export async function fetchCodeSearch(
-  redis: Redis | null,
+  cacheClient: SupabaseClient | null,
   githubToken: string,
   query: string,
   page: number,
@@ -23,7 +23,7 @@ export async function fetchCodeSearch(
 
   // Try to get cached data
   const cached = await getCachedData<GitHubCodeSearchResponse>(
-    redis,
+    cacheClient,
     cacheKey,
   );
 
@@ -82,11 +82,11 @@ export async function fetchCodeSearch(
 
   // Cache the new data with ETag (TTL from config for volatile search results)
   await setCachedData(
-    redis,
+    cacheClient,
     cacheKey,
     searchData,
     newEtag,
-    config.redis.ttl.codeSearch,
+    config.cache.ttl.codeSearch,
   );
 
   return searchData;
@@ -96,7 +96,7 @@ export async function fetchCodeSearch(
  * Fetch repository information from GitHub API with caching
  */
 export async function fetchRepository(
-  redis: Redis | null,
+  cacheClient: SupabaseClient | null,
   githubToken: string,
   fullName: string,
 ): Promise<RepositoryInfo | null> {
@@ -107,7 +107,7 @@ export async function fetchRepository(
 
   // Try to get cached data
   const cachedRepo = await getCachedData<RepositoryInfo>(
-    redis,
+    cacheClient,
     repoCacheKey,
   );
 
@@ -157,11 +157,11 @@ export async function fetchRepository(
 
   // Cache the new data with ETag (TTL from config for stable repo metadata)
   await setCachedData(
-    redis,
+    cacheClient,
     repoCacheKey,
     repoData,
     repoEtag,
-    config.redis.ttl.repository,
+    config.cache.ttl.repository,
   );
 
   return repoData;
@@ -171,14 +171,14 @@ export async function fetchRepository(
  * Fetch multiple repositories in parallel
  */
 export async function fetchRepositories(
-  redis: Redis | null,
+  cacheClient: SupabaseClient | null,
   githubToken: string,
   fullNames: string[],
 ): Promise<Map<string, RepositoryInfo>> {
   const repoMap = new Map<string, RepositoryInfo>();
 
   const repoPromises = fullNames.map(async (fullName) => {
-    const repoData = await fetchRepository(redis, githubToken, fullName);
+    const repoData = await fetchRepository(cacheClient, githubToken, fullName);
     if (repoData) {
       repoMap.set(fullName, repoData);
     }

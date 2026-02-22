@@ -16,10 +16,8 @@ export class SearchConfig {
     readonly defaultLimit: number;
   };
 
-  // Redis 설정
-  readonly redis: {
-    readonly url: string | null;
-    readonly token: string | null;
+  // 캐시 설정 (TTL only — 연결은 기존 Supabase admin client 사용)
+  readonly cache: {
     readonly ttl: {
       readonly codeSearch: number;
       readonly repository: number;
@@ -52,20 +50,18 @@ export class SearchConfig {
       defaultLimit: 30, // Default limit if not specified
     };
 
-    // Redis 설정 (환경변수 + validation)
-    this.redis = {
-      url: this.getRedisUrl(),
-      token: this.getRedisToken(),
+    // 캐시 설정 (TTL only — 연결은 기존 Supabase admin client 사용)
+    this.cache = {
       ttl: {
         codeSearch: this.validateTTL(
-          Deno.env.get("REDIS_CODE_SEARCH_TTL"),
+          Deno.env.get("CACHE_TTL_CODE_SEARCH_SECONDS"),
           3600,
-          "REDIS_CODE_SEARCH_TTL",
+          "CACHE_TTL_CODE_SEARCH_SECONDS",
         ),
         repository: this.validateTTL(
-          Deno.env.get("REDIS_REPOSITORY_TTL"),
+          Deno.env.get("CACHE_TTL_REPOSITORY_SECONDS"),
           86400,
-          "REDIS_REPOSITORY_TTL",
+          "CACHE_TTL_REPOSITORY_SECONDS",
         ),
       },
     };
@@ -135,22 +131,6 @@ export class SearchConfig {
   }
 
   /**
-   * Get Redis URL from environment
-   * @returns Redis URL or null if not configured
-   */
-  private getRedisUrl(): string | null {
-    return Deno.env.get("UPSTASH_REDIS_REST_URL") || null;
-  }
-
-  /**
-   * Get Redis token from environment
-   * @returns Redis token or null if not configured
-   */
-  private getRedisToken(): string | null {
-    return Deno.env.get("UPSTASH_REDIS_REST_TOKEN") || null;
-  }
-
-  /**
    * Parse allowed origins from environment
    * @returns Array of allowed origins
    */
@@ -167,13 +147,6 @@ export class SearchConfig {
   }
 
   // ========== Helper Methods ==========
-
-  /**
-   * Check if Redis is properly configured
-   */
-  get isRedisEnabled(): boolean {
-    return this.redis.url !== null && this.redis.token !== null;
-  }
 
   /**
    * Check if CORS is enabled
