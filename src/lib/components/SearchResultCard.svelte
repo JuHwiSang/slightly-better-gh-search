@@ -1,13 +1,12 @@
 <script lang="ts">
 	import IconLucideFolderOpen from '~icons/lucide/folder-open';
-	import type { SearchResultItem, TextMatch } from '$lib/types/search';
+	import type { SearchResultItem } from '$lib/types/search';
 
 	interface Props {
 		result: SearchResultItem;
-		textMatch?: TextMatch;
 	}
 
-	let { result, textMatch }: Props = $props();
+	let { result }: Props = $props();
 
 	// Compute display values from repository info
 	const language = $derived(result.repository.language || 'Unknown');
@@ -57,34 +56,74 @@
 		return date.toLocaleDateString();
 	}
 
+	const SEPARATOR = '\u2026'; // '…' ellipsis as separator marker
+
 	/**
-	 * Extract code snippet from text matches or use default
+	 * Build code lines from all content text_matches, joined by '...' separator
 	 */
 	function getCodeSnippet(): string[] {
-		// Use the specific textMatch if provided, otherwise fall back to first match
-		const match = textMatch ?? result.text_matches?.find((tm) => tm.fragment);
+		const contentMatches = result.text_matches?.filter((tm) => tm.fragment) ?? [];
 
-		if (!match?.fragment) {
+		if (contentMatches.length === 0) {
 			return ['// No preview available'];
 		}
 
-		// Split fragment into lines
-		return match.fragment.split('\n').slice(0, 5); // Show max 5 lines
+		const lines: string[] = [];
+		for (let i = 0; i < contentMatches.length; i++) {
+			if (i > 0) {
+				lines.push(SEPARATOR);
+			}
+			lines.push(...contentMatches[i].fragment.split('\n').slice(0, 5));
+		}
+		return lines;
+	}
+
+	/**
+	 * Map each code line back to its source TextMatch (for highlighting).
+	 * Separator lines map to null.
+	 */
+	function buildLineMatchMap(): (number | null)[] {
+		const contentMatches = result.text_matches?.filter((tm) => tm.fragment) ?? [];
+		if (contentMatches.length === 0) return [];
+
+		const map: (number | null)[] = [];
+		for (let i = 0; i < contentMatches.length; i++) {
+			if (i > 0) map.push(null); // separator
+			const fragLines = contentMatches[i].fragment.split('\n').slice(0, 5);
+			for (let _j = 0; _j < fragLines.length; _j++) {
+				map.push(i);
+			}
+		}
+		return map;
 	}
 
 	const codeLines = $derived(getCodeSnippet());
+	const lineMatchMap = $derived(buildLineMatchMap());
 
 	/**
 	 * Apply text-match highlighting to a code line
 	 * Returns HTML string with highlighted terms wrapped in <mark> tags
 	 */
 	function highlightLine(line: string, lineIndex: number): string {
-		// Use the specific textMatch if provided, otherwise fall back to first content match
-		const activeMatch = textMatch ?? result.text_matches?.find((tm) => tm.property === 'content');
+		const matchIdx = lineMatchMap[lineIndex];
+		if (matchIdx === null || matchIdx === undefined) return escapeHtml(line);
+
+		const contentMatches = result.text_matches?.filter((tm) => tm.fragment) ?? [];
+		const activeMatch = contentMatches[matchIdx];
 		if (!activeMatch || activeMatch.property !== 'content') return escapeHtml(line);
 
-		// Find text matches for this line
-		const lineStart = codeLines.slice(0, lineIndex).join('\n').length + (lineIndex > 0 ? 1 : 0);
+		// Compute line offset within this match's fragment
+		// We need to find this line's position relative to the fragment start
+		const fragLines = activeMatch.fragment.split('\n').slice(0, 5);
+		// Find which fragment line this corresponds to
+		let fragLineIdx = 0;
+		let count = 0;
+		for (let i = 0; i < lineIndex; i++) {
+			if (lineMatchMap[i] === matchIdx) count++;
+		}
+		fragLineIdx = count;
+
+		const lineStart = fragLines.slice(0, fragLineIdx).join('\n').length + (fragLineIdx > 0 ? 1 : 0);
 		const lineEnd = lineStart + line.length;
 
 		// Collect all matches that overlap with this line
@@ -172,7 +211,11 @@
 	>
 		<div class="flex flex-col px-4 py-2 whitespace-pre text-slate-300">
 			{#each codeLines as line, index}
-				<div>{@html highlightLine(line, index)}</div>
+				{#if line === SEPARATOR}
+					<div class="my-1 border-t border-dashed border-terminal-border text-center text-xs text-text-muted">...</div>
+				{:else}
+					<div>{@html highlightLine(line, index)}</div>
+				{/if}
 			{/each}
 		</div>
 	</div>
