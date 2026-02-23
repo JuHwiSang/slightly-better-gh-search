@@ -11,7 +11,7 @@ import { config } from "./config.ts";
  * @param cursor - Cursor string in format "page:index" or just "page"
  * @returns Object with validated page and index, or null if invalid
  */
-function parseCursor(cursor: string | null): {
+export function parseCursor(cursor: string | null): {
   page: number;
   index: number;
 } | null {
@@ -132,23 +132,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    const startPage = cursorData?.page ?? 1;
-    const startIndex = cursorData?.index ?? 0;
-
     // Fetch and filter results
     const filteredItems: SearchResultItem[] = [];
-    let currentPage = startPage;
-    let currentIndex = 0;
+    let currentPage = cursorData?.page ?? 1;
+    let currentIndex = cursorData?.index ?? 0;
     let totalCount = 0;
     let hasMore = true;
-    let incompleteResults = false; // Track if any page had incomplete results
+    let incompleteResults = false;
+    const maxPage = currentPage + config.search.maxPagesToFetch - 1;
 
-    // Keep fetching pages until we have enough filtered results
-    while (
-      filteredItems.length < limit &&
-      currentPage <= startPage + config.search.maxPagesToFetch - 1
-    ) {
-      // Fetch code search results from GitHub
+    while (filteredItems.length < limit && currentPage <= maxPage) {
       const searchData = await fetchCodeSearch(
         cacheClient,
         githubToken,
@@ -160,39 +153,33 @@ Deno.serve(async (req) => {
       totalCount = searchData.total_count;
       incompleteResults = incompleteResults || searchData.incomplete_results;
 
-      // If no more results, break
       if (searchData.items.length === 0) {
         hasMore = false;
         break;
       }
 
-      // Fetch repository information for each unique repository
+      // Fetch repo info only for items from currentIndex onward
       const uniqueRepos = [
-        ...new Set(searchData.items.map((item) => item.repository.full_name)),
+        ...new Set(
+          searchData.items.slice(currentIndex).map((item) => item.repository.full_name),
+        ),
       ];
-
       const repoMap = await fetchRepositories(cacheClient, githubToken, uniqueRepos);
 
-      // Apply filter and build result items
-      for (let i = 0; i < searchData.items.length; i++) {
-        const item = searchData.items[i];
-
-        // Skip items before cursor index on the starting page
-        if (currentPage === startPage && i < startIndex) {
-          continue;
-        }
+      // Process items starting from currentIndex
+      for (; currentIndex < searchData.items.length; currentIndex++) {
+        const item = searchData.items[currentIndex];
 
         const repoInfo = repoMap.get(item.repository.full_name);
         if (!repoInfo) {
           console.warn(`[Search] Skipping item — repo info missing: ${item.repository.full_name}`);
-          continue; // Skip if repo info fetch failed
+          continue;
         }
 
-        // Apply filter
         if (filter && filter.trim() !== "") {
           try {
             if (!evaluateFilter(filter, repoInfo)) {
-              continue; // Skip items that don't match filter
+              continue;
             }
           } catch (error: unknown) {
             const errorMessage = error instanceof Error
@@ -205,7 +192,6 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Add to filtered results with text_matches
         filteredItems.push({
           name: item.name,
           path: item.path,
@@ -215,38 +201,36 @@ Deno.serve(async (req) => {
           html_url: item.html_url,
           repository: repoInfo,
           score: item.score,
-          text_matches: item.text_matches, // Pass through text-match metadata
+          text_matches: item.text_matches,
         });
 
-        currentIndex = i + 1; // Track position for next cursor
-
-        // Stop if we have enough results
         if (filteredItems.length >= limit) {
+          currentIndex++; // point to next unprocessed item
           break;
         }
       }
 
-      // Move to next page
-      currentPage++;
-      currentIndex = 0; // Reset index for new page
+      if (filteredItems.length >= limit) break;
 
-      // Check if there are more pages available
+      // Page exhausted — move to next page
+      currentPage++;
+      currentIndex = 0;
+
       if (currentPage * config.github.resultsPerPage >= totalCount) {
         hasMore = false;
         break;
       }
     }
 
-    // Generate next cursor
-    let nextCursor: string | null = null;
-    if (hasMore && filteredItems.length >= limit) {
-      // If we stopped mid-page, use current index; otherwise use next page
-      if (currentIndex > 0 && currentIndex < config.github.resultsPerPage) {
-        nextCursor = `${currentPage - 1}:${currentIndex}`;
-      } else {
-        nextCursor = `${currentPage}:0`;
-      }
+    // Normalize: if currentIndex went past the page, advance to next page
+    if (currentIndex >= config.github.resultsPerPage) {
+      currentPage++;
+      currentIndex = 0;
     }
+
+    const nextCursor = (hasMore && filteredItems.length >= limit)
+      ? `${currentPage}:${currentIndex}`
+      : null;
 
     // Prepare response
     const response: SearchResponse = {
