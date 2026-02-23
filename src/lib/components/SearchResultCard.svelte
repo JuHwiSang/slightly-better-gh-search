@@ -1,5 +1,5 @@
 <script lang="ts">
-	import IconLucideFolderOpen from '~icons/lucide/folder-open';
+	import IconLucideFileCode from '~icons/lucide/file-code';
 	import type { SearchResultItem } from '$lib/types/search';
 
 	interface Props {
@@ -184,7 +184,7 @@
 	<!-- Repository and File Path -->
 	<div class="flex items-center gap-2 text-sm">
 		<div class="flex items-center gap-2 text-text-muted">
-			<IconLucideFolderOpen class="h-[18px] w-[18px]" />
+			<IconLucideFileCode class="h-[18px] w-[18px] shrink-0" />
 			<a
 				href={result.repository.html_url}
 				target="_blank"
@@ -194,14 +194,13 @@
 				{result.repository.full_name}
 			</a>
 		</div>
-		<span class="text-slate-600">/</span>
 		<a
 			href={result.html_url}
 			target="_blank"
 			rel="noopener noreferrer"
 			class="truncate font-mono text-xs text-text-muted hover:text-accent-blue hover:underline"
 		>
-			{result.path}
+			<span class="">/</span>{result.path}
 		</a>
 	</div>
 
