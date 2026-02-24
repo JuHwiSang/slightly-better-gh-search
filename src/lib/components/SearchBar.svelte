@@ -2,8 +2,10 @@
 	import IconLucideCornerDownLeft from '~icons/lucide/corner-down-left';
 	import IconLucideGithub from '~icons/lucide/github';
 	import IconLucideCircleHelp from '~icons/lucide/circle-help';
+	import IconLucideLoaderCircle from '~icons/lucide/loader-circle';
 	import { authState } from '$lib/stores/auth.svelte';
 	import { goto } from '$app/navigation';
+	import { navigating } from '$app/stores';
 
 	interface Props {
 		variant?: 'main' | 'search';
@@ -15,6 +17,7 @@
 
 	// Reactive state for button disabled status
 	let isQueryEmpty = $derived(!query.trim());
+	let isSearching = $derived($navigating !== null);
 
 	// Help popover state: 'search' | 'filter' | null
 	let activeHelp: 'search' | 'filter' | null = $state(null);
@@ -43,8 +46,7 @@
 	}
 
 	function handleExecute() {
-		// Don't execute if query is empty
-		if (!query.trim()) {
+		if (isSearching || !query.trim()) {
 			return;
 		}
 
@@ -210,15 +212,20 @@
 		{:else}
 			<button
 				onclick={handleExecute}
-				disabled={isQueryEmpty}
-				class="group flex items-center gap-2 tracking-wider uppercase transition-colors {isQueryEmpty
+				disabled={isQueryEmpty || isSearching}
+				class="group flex items-center gap-2 tracking-wider uppercase transition-colors {isQueryEmpty || isSearching
 					? 'cursor-not-allowed text-gray-600'
 					: 'hover:text-white'}"
 			>
-				Execute
-				<IconLucideCornerDownLeft
-					class="h-4 w-4 transition-transform {isQueryEmpty ? '' : 'group-hover:translate-x-0.5'}"
-				/>
+				{#if isSearching}
+					<IconLucideLoaderCircle class="h-4 w-4 animate-spin" />
+					Searching...
+				{:else}
+					Execute
+					<IconLucideCornerDownLeft
+						class="h-4 w-4 transition-transform {isQueryEmpty ? '' : 'group-hover:translate-x-0.5'}"
+					/>
+				{/if}
 			</button>
 		{/if}
 	</div>
