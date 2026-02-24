@@ -340,7 +340,7 @@ When you provide the `text-match` media type, you'll receive an extra key called
 | Field     | Description                                                                |
 | --------- | -------------------------------------------------------------------------- |
 | `text`    | The matching search term                                                   |
-| `indices` | Array of two integers `[start, end]` indicating the position in `fragment` |
+| `indices` | Array of two integers `[start, end]` indicating the position in `fragment` (**UTF-8 byte offsets**, not character offsets) |
 
 ### Example Request
 
@@ -405,6 +405,15 @@ curl -H 'Accept: application/vnd.github.text-match+json' \
 > [!NOTE]
 > The indices in `matches` are **relative to the fragment**, not the full
 > property content.
+
+> [!WARNING]
+> The `indices` values are **UTF-8 byte offsets**, not character offsets.
+> For ASCII-only text these are identical, but for multi-byte characters
+> (e.g., CJK, emoji, accented characters) they will differ.
+> For example, the Korean string "테스트" is 3 characters but 9 UTF-8 bytes,
+> so its indices span 9 rather than 3.
+> When consuming these values in JavaScript (which uses UTF-16 string indexing),
+> you must convert byte offsets to character offsets before using `String.prototype.slice()`.
 
 ## Best Practices
 

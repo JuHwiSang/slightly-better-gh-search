@@ -130,7 +130,9 @@
 		const highlights: Array<{ start: number; end: number; text: string }> = [];
 
 		for (const match of activeMatch.matches) {
-			const [matchStart, matchEnd] = match.indices;
+			// GitHub API returns indices as UTF-8 byte offsets; convert to char offsets
+			const matchStart = utf8ByteToCharOffset(activeMatch.fragment, match.indices[0]);
+			const matchEnd = utf8ByteToCharOffset(activeMatch.fragment, match.indices[1]);
 			// Check if match overlaps with current line
 			if (matchStart < lineEnd && matchEnd > lineStart) {
 				highlights.push({
@@ -163,6 +165,17 @@
 		result_html += escapeHtml(line.slice(lastIndex));
 
 		return result_html;
+	}
+
+	/**
+	 * Convert UTF-8 byte offset to JS character offset.
+	 * GitHub API returns indices as UTF-8 byte offsets,
+	 * but JS strings use UTF-16 character indexing.
+	 */
+	function utf8ByteToCharOffset(str: string, byteOffset: number): number {
+		const encoded = new TextEncoder().encode(str);
+		const decoded = new TextDecoder().decode(encoded.slice(0, byteOffset));
+		return decoded.length;
 	}
 
 	/**
