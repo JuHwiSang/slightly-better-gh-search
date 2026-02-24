@@ -1,0 +1,43 @@
+name: Deploy Supabase
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/**']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+
+      - name: Push secrets to edge functions
+        run: |
+          SECRETS="ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}"
+
+          if [ -n "${{ secrets.CACHE_TTL_CODE_SEARCH_SECONDS }}" ]; then
+            SECRETS="$SECRETS CACHE_TTL_CODE_SEARCH_SECONDS=${{ secrets.CACHE_TTL_CODE_SEARCH_SECONDS }}"
+          fi
+
+          if [ -n "${{ secrets.CACHE_TTL_REPOSITORY_SECONDS }}" ]; then
+            SECRETS="$SECRETS CACHE_TTL_REPOSITORY_SECONDS=${{ secrets.CACHE_TTL_REPOSITORY_SECONDS }}"
+          fi
+
+          supabase secrets set $SECRETS --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+
+      - name: Run database migrations
+        run: supabase db push --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+
+      - name: Deploy edge functions
+        run: supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
