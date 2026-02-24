@@ -103,7 +103,7 @@
 			</div>
 			{#if activeHelp === 'search'}
 				<div
-					class="help-popover absolute top-full left-0 z-50 mt-2 w-full rounded border border-accent-green/30 bg-[#0d1117] p-4 font-mono text-sm shadow-lg"
+					class="help-popover absolute top-full left-0 z-50 mt-2 max-h-64 w-full overflow-y-auto rounded border border-accent-green/30 bg-[#0d1117] p-4 font-mono text-sm shadow-lg"
 				>
 					<p class="mb-2 font-bold text-accent-green">GitHub Code Search API</p>
 					<p class="mb-3 text-text-muted">
@@ -154,7 +154,7 @@
 			</div>
 			{#if activeHelp === 'filter'}
 				<div
-					class="help-popover absolute top-full left-0 z-50 mt-2 w-full rounded border border-accent-blue/30 bg-[#0d1117] p-4 font-mono text-sm shadow-lg"
+					class="help-popover absolute top-full left-0 z-50 mt-2 max-h-64 w-full overflow-y-auto rounded border border-accent-blue/30 bg-[#0d1117] p-4 font-mono text-sm shadow-lg"
 				>
 					<p class="mb-2 font-bold text-accent-blue">Post-filter (Filtrex Expression)</p>
 					<p class="mb-3 text-text-muted">
