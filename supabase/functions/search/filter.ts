@@ -32,21 +32,36 @@ export function evaluateFilter(
       watchers: repo.watchers_count,
       forks: repo.forks_count,
       issues: repo.open_issues_count,
+      size: repo.size,
+      subscribers: repo.subscribers_count,
+      network: repo.network_count,
 
       // Metadata
       language: repo.language || "",
       name: repo.name,
       full_name: repo.full_name,
       description: repo.description || "",
+      homepage: repo.homepage || "",
+      license: repo.license?.spdx_id || "",
+      default_branch: repo.default_branch,
+      topics: repo.topics || [],
 
-      // Settings
+      // Status flags
       is_fork: repo.fork,
       is_private: repo.private,
       visibility: repo.visibility,
-      default_branch: repo.default_branch,
+      archived: repo.archived,
+      disabled: repo.disabled,
+      is_template: repo.is_template,
+      allow_forking: repo.allow_forking,
 
-      // Topics
-      topics: repo.topics || [],
+      // Feature flags
+      has_issues: repo.has_issues,
+      has_wiki: repo.has_wiki,
+      has_pages: repo.has_pages,
+      has_downloads: repo.has_downloads,
+      has_discussions: repo.has_discussions,
+      has_projects: repo.has_projects,
 
       // Dates (convert to timestamps for comparison)
       created_at: new Date(repo.created_at).getTime(),

@@ -160,18 +160,53 @@
 					<p class="mb-3 text-text-muted">
 						Filters search results by repository metadata. Applied after GitHub search.
 					</p>
-					<p class="mb-1 text-xs font-bold text-gray-400">Available fields:</p>
-					<div class="mb-3 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+					<p class="mb-1 text-xs font-bold text-gray-400">Numbers:</p>
+					<div class="mb-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
 						<span><code class="text-accent-blue">stars</code> <span class="text-text-muted">star count</span></span>
 						<span><code class="text-accent-blue">forks</code> <span class="text-text-muted">fork count</span></span>
 						<span><code class="text-accent-blue">watchers</code> <span class="text-text-muted">watcher count</span></span>
-						<span><code class="text-accent-blue">issues</code> <span class="text-text-muted">open issues</span></span>
-						<span><code class="text-accent-blue">language</code> <span class="text-text-muted">language</span></span>
+						<span><code class="text-accent-blue">issues</code> <span class="text-text-muted">open issue count</span></span>
+						<span><code class="text-accent-blue">size</code> <span class="text-text-muted">repo size in KB</span></span>
+						<span><code class="text-accent-blue">subscribers</code> <span class="text-text-muted">subscriber count</span></span>
+						<span><code class="text-accent-blue">network</code> <span class="text-text-muted">fork network count</span></span>
+					</div>
+					<p class="mb-1 text-xs font-bold text-gray-400">Strings:</p>
+					<div class="mb-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+						<span><code class="text-accent-blue">language</code> <span class="text-text-muted">primary language</span></span>
 						<span><code class="text-accent-blue">name</code> <span class="text-text-muted">repo name</span></span>
-						<span><code class="text-accent-blue">owner</code> <span class="text-text-muted">owner username</span></span>
-						<span><code class="text-accent-blue">is_fork</code> <span class="text-text-muted">is a fork</span></span>
-						<span><code class="text-accent-blue">is_private</code> <span class="text-text-muted">is private</span></span>
-						<span><code class="text-accent-blue">topics</code> <span class="text-text-muted">topic array</span></span>
+						<span><code class="text-accent-blue">full_name</code> <span class="text-text-muted">owner/repo format</span></span>
+						<span><code class="text-accent-blue">owner</code> <span class="text-text-muted">owner login name</span></span>
+						<span><code class="text-accent-blue">owner_type</code> <span class="text-text-muted">"User" or "Organization"</span></span>
+						<span><code class="text-accent-blue">description</code> <span class="text-text-muted">repo description</span></span>
+						<span><code class="text-accent-blue">homepage</code> <span class="text-text-muted">homepage URL</span></span>
+						<span><code class="text-accent-blue">license</code> <span class="text-text-muted">SPDX license ID (e.g. "MIT")</span></span>
+						<span><code class="text-accent-blue">default_branch</code> <span class="text-text-muted">default branch name</span></span>
+						<span><code class="text-accent-blue">visibility</code> <span class="text-text-muted">"public" or "private"</span></span>
+					</div>
+					<p class="mb-1 text-xs font-bold text-gray-400">Arrays:</p>
+					<div class="mb-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+						<span><code class="text-accent-blue">topics</code> <span class="text-text-muted">topic tag list</span></span>
+					</div>
+					<p class="mb-1 text-xs font-bold text-gray-400">Booleans:</p>
+					<div class="mb-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+						<span><code class="text-accent-blue">is_fork</code> <span class="text-text-muted">is a fork or not</span></span>
+						<span><code class="text-accent-blue">is_private</code> <span class="text-text-muted">is private or not</span></span>
+						<span><code class="text-accent-blue">archived</code> <span class="text-text-muted">is archived or not</span></span>
+						<span><code class="text-accent-blue">disabled</code> <span class="text-text-muted">is disabled or not</span></span>
+						<span><code class="text-accent-blue">is_template</code> <span class="text-text-muted">is a template or not</span></span>
+						<span><code class="text-accent-blue">allow_forking</code> <span class="text-text-muted">allows forking or not</span></span>
+						<span><code class="text-accent-blue">has_issues</code> <span class="text-text-muted">has issues enabled or not</span></span>
+						<span><code class="text-accent-blue">has_wiki</code> <span class="text-text-muted">has wiki enabled or not</span></span>
+						<span><code class="text-accent-blue">has_pages</code> <span class="text-text-muted">has GitHub Pages or not</span></span>
+						<span><code class="text-accent-blue">has_downloads</code> <span class="text-text-muted">has downloads enabled or not</span></span>
+						<span><code class="text-accent-blue">has_discussions</code> <span class="text-text-muted">has discussions enabled or not</span></span>
+						<span><code class="text-accent-blue">has_projects</code> <span class="text-text-muted">has projects enabled or not</span></span>
+					</div>
+					<p class="mb-1 text-xs font-bold text-gray-400">Dates (ms timestamp):</p>
+					<div class="mb-3 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+						<span><code class="text-accent-blue">created_at</code> <span class="text-text-muted">repo creation date</span></span>
+						<span><code class="text-accent-blue">updated_at</code> <span class="text-text-muted">last update date</span></span>
+						<span><code class="text-accent-blue">pushed_at</code> <span class="text-text-muted">last push date</span></span>
 					</div>
 					<p class="mb-1 text-xs font-bold text-gray-400">Operators:</p>
 					<p class="mb-3 text-xs text-text-muted">
@@ -179,7 +214,7 @@
 						<code class="text-white">&gt;</code> <code class="text-white">&gt;=</code>
 						<code class="text-white">&lt;</code> <code class="text-white">&lt;=</code>
 						<code class="text-white">and</code> <code class="text-white">or</code>
-						<code class="text-white">not</code>
+						<code class="text-white">not</code> <code class="text-white">in</code>
 					</p>
 					<p class="mb-1 text-xs font-bold text-gray-400">Examples:</p>
 					<div class="space-y-1 text-xs">
@@ -187,6 +222,10 @@
 						<code class="block text-white">language == "TypeScript"</code>
 						<code class="block text-white">stars > 50 and not is_fork</code>
 						<code class="block text-white">owner == "vercel" and forks > 10</code>
+						<code class="block text-white">license == "MIT" and not archived</code>
+						<code class="block text-white">"react" in topics</code>
+						<code class="block text-white">created_at > 1704067200000</code>
+						<code class="block text-text-muted">-- dates are ms timestamps (e.g. 2024-01-01 = 1704067200000)</code>
 					</div>
 				</div>
 			{/if}

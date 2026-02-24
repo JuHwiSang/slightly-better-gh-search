@@ -67,6 +67,21 @@ export interface RepositoryInfo {
   created_at: string;
   updated_at: string;
   pushed_at: string;
+  size: number;
+  archived: boolean;
+  disabled: boolean;
+  is_template: boolean;
+  homepage: string | null;
+  license: { key: string; name: string; spdx_id: string; url: string } | null;
+  has_issues: boolean;
+  has_wiki: boolean;
+  has_pages: boolean;
+  has_downloads: boolean;
+  has_discussions: boolean;
+  has_projects: boolean;
+  subscribers_count: number;
+  network_count: number;
+  allow_forking: boolean;
 }
 
 export interface GitHubCodeSearchResponse {
