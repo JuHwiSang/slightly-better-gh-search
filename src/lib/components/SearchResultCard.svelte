@@ -219,7 +219,7 @@
 
 	<!-- Code Snippet -->
 	<div
-		class="custom-scrollbar overflow-hidden overflow-x-auto rounded-md border border-terminal-border bg-code-bg font-mono text-xs leading-relaxed sm:text-sm"
+		class="overflow-hidden overflow-x-auto rounded-md border border-terminal-border bg-code-bg font-mono text-xs leading-relaxed sm:text-sm"
 	>
 		<div class="flex flex-col px-4 py-2 whitespace-pre text-slate-300">
 			{#each codeLines as line, index}
