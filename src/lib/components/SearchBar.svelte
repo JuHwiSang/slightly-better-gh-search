@@ -1,6 +1,7 @@
 <script lang="ts">
 	import IconLucideCornerDownLeft from '~icons/lucide/corner-down-left';
 	import IconLucideGithub from '~icons/lucide/github';
+	import IconLucideCircleHelp from '~icons/lucide/circle-help';
 	import { authState } from '$lib/stores/auth.svelte';
 	import { goto } from '$app/navigation';
 
@@ -14,6 +15,20 @@
 
 	// Reactive state for button disabled status
 	let isQueryEmpty = $derived(!query.trim());
+
+	// Help popover state: 'search' | 'filter' | null
+	let activeHelp: 'search' | 'filter' | null = $state(null);
+
+	function toggleHelp(type: 'search' | 'filter') {
+		activeHelp = activeHelp === type ? null : type;
+	}
+
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (!target.closest('.help-popover') && !target.closest('.help-trigger')) {
+			activeHelp = null;
+		}
+	}
 
 	async function handleGitHubLogin() {
 		// Build search URL with current query/filter to redirect after login
@@ -52,44 +67,127 @@
 	}
 </script>
 
+<svelte:window onclick={handleClickOutside} onkeydown={(e) => { if (e.key === 'Escape') activeHelp = null; }} />
+
 <div
-	class="w-full overflow-hidden rounded-lg border border-terminal-border bg-terminal-panel font-mono shadow-2xl ring-1 ring-white/5 transition-all duration-300"
+	class="w-full rounded-lg border border-terminal-border bg-terminal-panel font-mono shadow-2xl ring-1 ring-white/5 transition-all duration-300"
 >
 	<div class="flex flex-col gap-5 p-6 md:p-8">
 		<!-- Search Input -->
-		<div class="group flex items-baseline gap-4">
-			<label
-				for="search-input"
-				class="min-w-[70px] text-right text-lg font-bold text-accent-green select-none"
-			>
-				Search:
-			</label>
-			<input
-				id="search-input"
-				type="text"
-				bind:value={query}
-				onkeydown={handleKeyDown}
-				placeholder="enter keyword..."
-				class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-500 caret-accent-green focus:ring-0"
-			/>
+		<div class="relative">
+			<div class="group flex items-baseline gap-4">
+				<label
+					for="search-input"
+					class="flex min-w-[70px] items-center justify-end gap-1 text-lg font-bold text-accent-green select-none"
+				>
+					Search:
+					<button
+						type="button"
+						class="help-trigger text-accent-green/50 transition-colors hover:text-accent-green"
+						onclick={(e) => { e.stopPropagation(); toggleHelp('search'); }}
+						aria-label="Search help"
+					>
+						<IconLucideCircleHelp class="h-3.5 w-3.5" />
+					</button>
+				</label>
+				<input
+					id="search-input"
+					type="text"
+					bind:value={query}
+					onkeydown={handleKeyDown}
+					placeholder="enter keyword..."
+					class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-500 caret-accent-green focus:ring-0"
+				/>
+			</div>
+			{#if activeHelp === 'search'}
+				<div
+					class="help-popover absolute top-full left-0 z-50 mt-2 w-full rounded border border-accent-green/30 bg-[#0d1117] p-4 font-mono text-sm shadow-lg"
+				>
+					<p class="mb-2 font-bold text-accent-green">GitHub Code Search API</p>
+					<p class="mb-3 text-text-muted">
+						Sent directly to GitHub's Code Search API. Supports GitHub search qualifiers.
+					</p>
+					<p class="mb-1 text-xs font-bold text-gray-400">Qualifiers:</p>
+					<ul class="mb-3 space-y-0.5 text-xs text-text-muted">
+						<li><code class="text-accent-green">language:</code> — filter by language (e.g. typescript, python)</li>
+						<li><code class="text-accent-green">repo:</code> — specific repo (e.g. sveltejs/svelte)</li>
+						<li><code class="text-accent-green">path:</code> — file path (e.g. src/lib/)</li>
+						<li><code class="text-accent-green">extension:</code> — file extension (e.g. ts, js)</li>
+					</ul>
+					<p class="mb-1 text-xs font-bold text-gray-400">Examples:</p>
+					<div class="space-y-1 text-xs">
+						<code class="block text-white">useState language:typescript</code>
+						<code class="block text-white">repo:sveltejs/svelte onMount</code>
+						<code class="block text-white">path:src/ extension:ts async function</code>
+					</div>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Filter Input -->
-		<div class="group flex items-baseline gap-4">
-			<label
-				for="filter-input"
-				class="min-w-[70px] text-right text-lg font-bold text-accent-blue select-none"
-			>
-				Filter:
-			</label>
-			<input
-				id="filter-input"
-				type="text"
-				bind:value={filter}
-				onkeydown={handleKeyDown}
-				placeholder="regex pattern..."
-				class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-500 caret-accent-blue focus:ring-0"
-			/>
+		<div class="relative">
+			<div class="group flex items-baseline gap-4">
+				<label
+					for="filter-input"
+					class="flex min-w-[70px] items-center justify-end gap-1 text-lg font-bold text-accent-blue select-none"
+				>
+					Filter:
+					<button
+						type="button"
+						class="help-trigger text-accent-blue/50 transition-colors hover:text-accent-blue"
+						onclick={(e) => { e.stopPropagation(); toggleHelp('filter'); }}
+						aria-label="Filter help"
+					>
+						<IconLucideCircleHelp class="h-3.5 w-3.5" />
+					</button>
+				</label>
+				<input
+					id="filter-input"
+					type="text"
+					bind:value={filter}
+					onkeydown={handleKeyDown}
+					placeholder="filter expression..."
+					class="flex-1 border-none bg-transparent p-0 font-mono text-lg text-white placeholder-gray-500 caret-accent-blue focus:ring-0"
+				/>
+			</div>
+			{#if activeHelp === 'filter'}
+				<div
+					class="help-popover absolute top-full left-0 z-50 mt-2 w-full rounded border border-accent-blue/30 bg-[#0d1117] p-4 font-mono text-sm shadow-lg"
+				>
+					<p class="mb-2 font-bold text-accent-blue">Post-filter (Filtrex Expression)</p>
+					<p class="mb-3 text-text-muted">
+						Filters search results by repository metadata. Applied after GitHub search.
+					</p>
+					<p class="mb-1 text-xs font-bold text-gray-400">Available fields:</p>
+					<div class="mb-3 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+						<span><code class="text-accent-blue">stars</code> <span class="text-text-muted">star count</span></span>
+						<span><code class="text-accent-blue">forks</code> <span class="text-text-muted">fork count</span></span>
+						<span><code class="text-accent-blue">watchers</code> <span class="text-text-muted">watcher count</span></span>
+						<span><code class="text-accent-blue">issues</code> <span class="text-text-muted">open issues</span></span>
+						<span><code class="text-accent-blue">language</code> <span class="text-text-muted">language</span></span>
+						<span><code class="text-accent-blue">name</code> <span class="text-text-muted">repo name</span></span>
+						<span><code class="text-accent-blue">owner</code> <span class="text-text-muted">owner username</span></span>
+						<span><code class="text-accent-blue">is_fork</code> <span class="text-text-muted">is a fork</span></span>
+						<span><code class="text-accent-blue">is_private</code> <span class="text-text-muted">is private</span></span>
+						<span><code class="text-accent-blue">topics</code> <span class="text-text-muted">topic array</span></span>
+					</div>
+					<p class="mb-1 text-xs font-bold text-gray-400">Operators:</p>
+					<p class="mb-3 text-xs text-text-muted">
+						<code class="text-white">==</code> <code class="text-white">!=</code>
+						<code class="text-white">&gt;</code> <code class="text-white">&gt;=</code>
+						<code class="text-white">&lt;</code> <code class="text-white">&lt;=</code>
+						<code class="text-white">and</code> <code class="text-white">or</code>
+						<code class="text-white">not</code>
+					</p>
+					<p class="mb-1 text-xs font-bold text-gray-400">Examples:</p>
+					<div class="space-y-1 text-xs">
+						<code class="block text-white">stars > 100</code>
+						<code class="block text-white">language == "TypeScript"</code>
+						<code class="block text-white">stars > 50 and not is_fork</code>
+						<code class="block text-white">owner == "vercel" and forks > 10</code>
+					</div>
+				</div>
+			{/if}
 		</div>
 	</div>
 
