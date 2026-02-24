@@ -10,8 +10,10 @@ export interface User {
 class AuthState {
     user = $state<User | null>(null);
     isAuthenticated = $state(false);
+    isLoading = $state(true);
 
     async signInWithGitHub(redirectPath?: string) {
+        this.isLoading = true;
         // Use provided path or current path as fallback
         const nextPath = redirectPath ||
             (window.location.pathname + window.location.search);
@@ -47,6 +49,7 @@ class AuthState {
     // - getUser()로 대체하면 매번 Auth 서버 네트워크 요청이 추가됨
     // - 서버 측은 hooks.server.ts의 safeGetSession에서 getUser()로 검증 중 ✅
     async loadSession() {
+        this.isLoading = true;
         const {
             data: { session },
         } = await supabase.auth.getSession();
@@ -61,6 +64,7 @@ class AuthState {
             };
             this.isAuthenticated = true;
         }
+        this.isLoading = false;
 
         // Listen for auth changes
         supabase.auth.onAuthStateChange((_event, session) => {

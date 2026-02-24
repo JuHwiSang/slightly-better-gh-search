@@ -240,13 +240,21 @@
 		{#if !authState.isAuthenticated}
 			<button
 				onclick={handleGitHubLogin}
-				class="group flex items-center gap-2 tracking-wider uppercase transition-colors hover:text-white"
+				disabled={authState.isLoading}
+				class="group flex items-center gap-2 tracking-wider uppercase transition-colors {authState.isLoading
+					? 'cursor-not-allowed text-gray-600'
+					: 'hover:text-white'}"
 			>
-				<IconLucideGithub class="h-4 w-4" />
-				<span>Sign in with GitHub</span>
-				<IconLucideCornerDownLeft
-					class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-				/>
+				{#if authState.isLoading}
+					<IconLucideLoaderCircle class="h-4 w-4 animate-spin" />
+					Signing in...
+				{:else}
+					<IconLucideGithub class="h-4 w-4" />
+					<span>Sign in with GitHub</span>
+					<IconLucideCornerDownLeft
+						class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+					/>
+				{/if}
 			</button>
 		{:else}
 			<button
