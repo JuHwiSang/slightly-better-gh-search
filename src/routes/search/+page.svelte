@@ -6,27 +6,41 @@
 	import { supabase } from '$lib/supabase';
 	import { FunctionsHttpError } from '@supabase/supabase-js';
 	import type { SearchResponse, SearchResultItem } from '$lib/types/search';
+	import type { PageData } from './$types';
 
 	// SSR data from +page.server.ts
-	const props = $props();
+	const props: PageData = $props();
 
 	// State management — initialized from SSR data
-	let results = $state<SearchResultItem[]>(props.data.initialData?.items ?? []);
-	let nextCursor = $state<string | null>(props.data.initialData?.next_cursor ?? null);
-	let totalCount = $state<number>(props.data.initialData?.total_count ?? 0);
+	let results = $state<SearchResultItem[]>([]);
+	let nextCursor = $state<string | null>(null);
+	let totalCount = $state<number>(0);
 	let isLoading = $state(false);
-	let error = $state<string | null>(props.data.error);
-	let incompleteResults = $state(props.data.initialData?.incomplete_results ?? false);
+	let error = $state<string | null>(null);
+	let incompleteResults = $state(false);
 	let hasMore = $derived(nextCursor !== null);
 
 	// Re-initialize when SSR data changes (e.g. new search via navigation)
 	$effect(() => {
-		results = props.data.initialData?.items ?? [];
-		nextCursor = props.data.initialData?.next_cursor ?? null;
-		totalCount = props.data.initialData?.total_count ?? 0;
-		incompleteResults = props.data.initialData?.incomplete_results ?? false;
-		error = props.data.error;
+		// Reset state
+		results = [];
+		nextCursor = null;
+		totalCount = 0;
+		incompleteResults = false;
+		error = null;
 		isLoading = false;
+
+		// Wait for streamed promise
+		props.streamed.searchResult.then((res) => {
+			if (res.error) {
+				error = res.error;
+			} else if (res.initialData) {
+				results = res.initialData.items || [];
+				nextCursor = res.initialData.next_cursor;
+				totalCount = res.initialData.total_count;
+				incompleteResults = res.initialData.incomplete_results;
+			}
+		});
 	});
 
 	async function loadResults(cursor: string) {
@@ -41,8 +55,8 @@
 				'search',
 				{
 					body: {
-						query: props.data.query,
-						...(props.data.filter && { filter: props.data.filter }),
+						query: props.query,
+						...(props.filter && { filter: props.filter }),
 						cursor,
 						limit: 10,
 					},
@@ -85,11 +99,19 @@
 	<main class="mx-auto flex w-full max-w-[1024px] flex-1 flex-col gap-6 px-4 py-8">
 		<!-- Search Bar Section -->
 		<section class="flex flex-col gap-4">
-			<SearchBar variant="search" query={props.data.query} filter={props.data.filter} />
+			<SearchBar variant="search" query={props.query} filter={props.filter} />
 		</section>
 
-		<!-- Incomplete Results Warning -->
-		{#if incompleteResults}
+		{#await props.streamed.searchResult}
+			<div class="flex items-center justify-center py-16">
+				<div class="flex items-center gap-2 text-text-muted">
+					<div class="h-5 w-5 animate-spin rounded-full border-2 border-accent-blue border-t-transparent"></div>
+					<span class="font-mono text-sm">Searching...</span>
+				</div>
+			</div>
+		{:then}
+			<!-- Incomplete Results Warning -->
+			{#if incompleteResults}
 			<div
 				class="rounded-lg border border-yellow-600/50 bg-yellow-600/10 px-4 py-3 font-mono text-sm text-yellow-400"
 			>
@@ -140,5 +162,6 @@
 				</div>
 			</div>
 		{/if}
+		{/await}
 	</main>
 </div>

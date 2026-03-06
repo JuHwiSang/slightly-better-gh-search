@@ -19,51 +19,54 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     }
 
     // Call Edge Function from server (POST with body)
-    const { data, error } = await locals.supabase.functions.invoke("search", {
+    const searchPromise = locals.supabase.functions.invoke("search", {
         body: {
             query,
             ...(filter && { filter }),
             limit: 10,
         },
-    });
-
-    if (error) {
-        let errorMessage = "Search failed";
-        if (error instanceof FunctionsHttpError) {
-            const { status, statusText } = error.context;
-            let responseBody: unknown = null;
-            try {
-                responseBody = await error.context.json();
-                errorMessage = (responseBody as Record<string, string>).error ||
-                    errorMessage;
-            } catch {
-                // Response body is not JSON
+    }).then(async ({ data, error }) => {
+        if (error) {
+            let errorMessage = "Search failed";
+            if (error instanceof FunctionsHttpError) {
+                const { status, statusText } = error.context;
+                let responseBody: unknown = null;
+                try {
+                    responseBody = await error.context.json();
+                    errorMessage =
+                        (responseBody as Record<string, string>).error ||
+                        errorMessage;
+                } catch {
+                    // Response body is not JSON
+                }
+                console.error(
+                    `[Search] Edge Function error`,
+                    `\n  Status: ${status} ${statusText}`,
+                    `\n  Query: ${query}`,
+                    filter ? `\n  Filter: ${filter}` : "",
+                    `\n  Response:`,
+                    responseBody ?? "(non-JSON body)",
+                );
+            } else {
+                console.error(
+                    `[Search] Unexpected error`,
+                    `\n  Type: ${error?.constructor?.name ?? typeof error}`,
+                    `\n  Query: ${query}`,
+                    filter ? `\n  Filter: ${filter}` : "",
+                    `\n  Detail:`,
+                    error,
+                );
             }
-            console.error(
-                `[Search] Edge Function error`,
-                `\n  Status: ${status} ${statusText}`,
-                `\n  Query: ${query}`,
-                filter ? `\n  Filter: ${filter}` : "",
-                `\n  Response:`,
-                responseBody ?? "(non-JSON body)",
-            );
-        } else {
-            console.error(
-                `[Search] Unexpected error`,
-                `\n  Type: ${error?.constructor?.name ?? typeof error}`,
-                `\n  Query: ${query}`,
-                filter ? `\n  Filter: ${filter}` : "",
-                `\n  Detail:`,
-                error,
-            );
+            return { initialData: null, error: errorMessage };
         }
-        return { query, filter, initialData: null, error: errorMessage };
-    }
+        return { initialData: data as SearchResponse, error: null };
+    });
 
     return {
         query,
         filter,
-        initialData: data as SearchResponse,
-        error: null,
+        streamed: {
+            searchResult: searchPromise,
+        },
     };
 };
