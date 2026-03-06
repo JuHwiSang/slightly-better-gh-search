@@ -29,6 +29,7 @@ export class SearchOrchestrator {
     constructor(private readonly github: GitHubClient) {}
 
     async execute(request: SearchRequest): Promise<OrchestratorResult> {
+        const startTime = performance.now();
         // Parse and validate cursor
         const cursorData = CursorManager.parse(request.cursor);
         if (request.cursor && !cursorData) {
@@ -122,6 +123,9 @@ export class SearchOrchestrator {
             position: { page: currentPage, index: currentIndex },
         });
 
+        const latency = (performance.now() - startTime).toFixed(2);
+        console.log(`[Search] Orchestration completed in ${latency}ms`);
+
         return {
             items: filteredItems.slice(0, request.limit),
             nextCursor,
@@ -176,6 +180,7 @@ export class SearchOrchestrator {
         searchData: import("./types.ts").GitHubCodeSearchResponse;
         repoMap: Map<string, RepositoryInfo>;
     }> {
+        const startTime = performance.now();
         const cachedRepos = [
             ...new Set(
                 cached.data.items.slice(startIndex).map((item) =>
@@ -196,6 +201,10 @@ export class SearchOrchestrator {
 
         if (freshResult.notModified) {
             // 304: cached search data + prefetched repos are valid
+            const latency = (performance.now() - startTime).toFixed(2);
+            console.log(
+                `[Search] Page ${page} optimistic fetch (hit) took ${latency}ms`,
+            );
             return { searchData: cached.data, repoMap: prefetchedRepoMap };
         }
 
@@ -220,6 +229,10 @@ export class SearchOrchestrator {
             repoMap = prefetchedRepoMap;
         }
 
+        const latency = (performance.now() - startTime).toFixed(2);
+        console.log(
+            `[Search] Page ${page} optimistic fetch (new data) took ${latency}ms`,
+        );
         return { searchData, repoMap };
     }
 
@@ -234,6 +247,7 @@ export class SearchOrchestrator {
         searchData: import("./types.ts").GitHubCodeSearchResponse;
         repoMap: Map<string, RepositoryInfo>;
     }> {
+        const startTime = performance.now();
         const freshResult = await this.github.fetchCodeSearchFresh(
             query,
             page,
@@ -250,6 +264,8 @@ export class SearchOrchestrator {
         ];
         const repoMap = await this.github.fetchRepositories(uniqueRepos);
 
+        const latency = (performance.now() - startTime).toFixed(2);
+        console.log(`[Search] Page ${page} fetch (miss) took ${latency}ms`);
         return { searchData, repoMap };
     }
 }

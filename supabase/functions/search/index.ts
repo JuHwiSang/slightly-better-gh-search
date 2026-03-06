@@ -21,6 +21,7 @@ import { ApiError } from "./errors.ts";
  * - 500: Unexpected internal errors
  */
 Deno.serve(async (req) => {
+  const startTime = performance.now();
   const corsHeaders = buildCorsHeaders(req);
   const response = new ResponseBuilder(corsHeaders);
 
@@ -49,10 +50,13 @@ Deno.serve(async (req) => {
     const orchestrator = new SearchOrchestrator(github);
     const result = await orchestrator.execute(request);
 
+    const latency = (performance.now() - startTime).toFixed(2);
+    console.log(`[Search] Request completed successfully in ${latency}ms`);
     return response.success(result);
   } catch (error: unknown) {
+    const latency = (performance.now() - startTime).toFixed(2);
     console.error(
-      "[Search] Unhandled error",
+      `[Search] Unhandled error (${latency}ms)`,
       `\n  query="${request?.query ?? ""}", cursor=${
         request?.cursor ?? null
       }, limit=${request?.limit ?? ""}`,

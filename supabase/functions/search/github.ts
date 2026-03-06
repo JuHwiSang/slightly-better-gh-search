@@ -67,14 +67,16 @@ export class GitHubClient {
     searchUrl.searchParams.set("per_page", perPage.toString());
     searchUrl.searchParams.set("page", page.toString());
 
+    const startTime = performance.now();
     const searchResponse = await fetch(searchUrl.toString(), {
       headers: searchHeaders,
     });
+    const latency = (performance.now() - startTime).toFixed(2);
 
     // Handle 304 Not Modified
     if (searchResponse.status === 304) {
       console.log(
-        `[GitHub] Code search 304 Not Modified (query="${query}", page=${page})`,
+        `[GitHub] Code search 304 Not Modified (${latency}ms, query="${query}", page=${page})`,
       );
       return { data: null, notModified: true };
     }
@@ -83,7 +85,7 @@ export class GitHubClient {
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text();
       console.error(
-        `[GitHub] Code search API error (query="${query}", page=${page}):`,
+        `[GitHub] Code search API error (${latency}ms, query="${query}", page=${page}):`,
         searchResponse.status,
         searchResponse.statusText,
         "\n  Body:",
@@ -98,7 +100,7 @@ export class GitHubClient {
     const searchData: GitHubCodeSearchResponse = await searchResponse.json();
     const newEtag = searchResponse.headers.get("ETag") || undefined;
     console.log(
-      `[GitHub] Code search OK (query="${query}", page=${page}): ${searchData.total_count} total, ${searchData.items.length} items, rate_limit_remaining=${
+      `[GitHub] Code search OK (${latency}ms, query="${query}", page=${page}): ${searchData.total_count} total, ${searchData.items.length} items, rate_limit_remaining=${
         searchResponse.headers.get("X-RateLimit-Remaining")
       }`,
     );
@@ -139,6 +141,7 @@ export class GitHubClient {
     const [owner, repo] = fullName.split("/");
     const repoUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}`;
 
+    const startTime = performance.now();
     const repoResponse = await fetch(repoUrl, {
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -146,11 +149,12 @@ export class GitHubClient {
         "X-GitHub-Api-Version": "2022-11-28",
       },
     });
+    const latency = (performance.now() - startTime).toFixed(2);
 
     if (!repoResponse.ok) {
       const errorText = await repoResponse.text();
       console.warn(
-        `[GitHub] Repo fetch failed for ${fullName}:`,
+        `[GitHub] Repo fetch failed for ${fullName} (${latency}ms):`,
         repoResponse.status,
         repoResponse.statusText,
         "\n  Body:",
@@ -161,7 +165,7 @@ export class GitHubClient {
 
     const repoData: RepositoryInfo = await repoResponse.json();
     console.log(
-      `[GitHub] Repo fetch OK: ${fullName}, rate_limit_remaining=${
+      `[GitHub] Repo fetch OK (${latency}ms): ${fullName}, rate_limit_remaining=${
         repoResponse.headers.get("X-RateLimit-Remaining")
       }`,
     );

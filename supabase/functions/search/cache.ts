@@ -61,23 +61,28 @@ export class CacheService {
     if (!this.supabase) return null;
 
     try {
+      const startTime = performance.now();
       const { data, error } = await this.supabase
         .from("cache")
         .select("data, etag")
         .eq("key", key)
         .gt("expires_at", new Date().toISOString())
         .maybeSingle();
+      const latency = (performance.now() - startTime).toFixed(2);
 
       if (error) {
-        console.error(`Cache read error for key ${key}:`, error.message);
+        console.error(
+          `Cache read error for key ${key} (${latency}ms):`,
+          error.message,
+        );
         return null;
       }
       if (!data) {
-        console.log(`Cache miss: ${key}`);
+        console.log(`Cache miss: ${key} (${latency}ms)`);
         return null;
       }
 
-      console.log(`Cache hit: ${key}`);
+      console.log(`Cache hit: ${key} (${latency}ms)`);
       return {
         data: data.data as T,
         etag: data.etag ?? undefined,
@@ -103,6 +108,7 @@ export class CacheService {
 
     try {
       const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+      const startTime = performance.now();
       const { error } = await this.supabase
         .from("cache")
         .upsert(
@@ -115,13 +121,19 @@ export class CacheService {
           },
           { onConflict: "key" },
         );
+      const latency = (performance.now() - startTime).toFixed(2);
 
       if (error) {
-        console.error(`Cache write error for key ${key}:`, error.message);
+        console.error(
+          `Cache write error for key ${key} (${latency}ms):`,
+          error.message,
+        );
         return;
       }
       console.log(
-        `Cache set: ${key} (TTL: ${ttlSeconds}s, ETag: ${etag || "none"})`,
+        `Cache set: ${key} (TTL: ${ttlSeconds}s, ETag: ${
+          etag || "none"
+        }, ${latency}ms)`,
       );
     } catch (error) {
       console.error(`Cache set exception for key ${key}:`, error);
@@ -136,14 +148,16 @@ export class CacheService {
     if (!this.supabase || keys.length === 0) return new Map();
 
     try {
+      const startTime = performance.now();
       const { data, error } = await this.supabase
         .from("cache")
         .select("key, data, etag")
         .in("key", keys)
         .gt("expires_at", new Date().toISOString());
+      const latency = (performance.now() - startTime).toFixed(2);
 
       if (error) {
-        console.error(`Cache batch read error:`, error.message);
+        console.error(`Cache batch read error (${latency}ms):`, error.message);
         return new Map();
       }
 
@@ -156,6 +170,9 @@ export class CacheService {
           });
         }
       }
+      console.log(
+        `Cache batch read: ${keys.length} keys requested, ${result.size} found (${latency}ms)`,
+      );
       return result;
     } catch (error) {
       console.error(`Cache batch get exception:`, error);
@@ -182,15 +199,17 @@ export class CacheService {
         created_at: new Date().toISOString(),
       }));
 
+      const startTime = performance.now();
       const { error } = await this.supabase
         .from("cache")
         .upsert(rows, { onConflict: "key" });
+      const latency = (performance.now() - startTime).toFixed(2);
 
       if (error) {
-        console.error(`Cache batch write error:`, error.message);
+        console.error(`Cache batch write error (${latency}ms):`, error.message);
         return;
       }
-      console.log(`Cache batch set: ${items.length} items`);
+      console.log(`Cache batch set: ${items.length} items (${latency}ms)`);
     } catch (error) {
       console.error(`Cache batch set exception:`, error);
     }
@@ -261,6 +280,7 @@ export class CacheService {
    * Returns a Map of key -> CachedData.
    */
   async getTieredBatch<T>(keys: string[]): Promise<Map<string, CachedData<T>>> {
+    const startTime = performance.now();
     const result = new Map<string, CachedData<T>>();
     if (keys.length === 0) return result;
 
@@ -324,6 +344,10 @@ export class CacheService {
       }
     }
 
+    const latency = (performance.now() - startTime).toFixed(2);
+    console.log(
+      `[Cache] Tiered batch resolved ${keys.length} keys in ${latency}ms`,
+    );
     return result;
   }
 
