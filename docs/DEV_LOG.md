@@ -4,28 +4,83 @@
 
 ---
 
+## 2026-03-06
+
+### 계층 캐시 + 옵티미스틱 병렬 페치 아키텍처 (ADR-009)
+
+#### Overview
+
+- **변경사항**: in-memory L1 + DB L2 계층 캐시, 옵티미스틱 병렬 페치, repo ETag
+  제거, 캐시 쓰기 fire-and-forget
+- **목적**: 캐시 DB 조회 병목 해소, 순차 실행 → 병렬 실행으로 응답 속도 대폭
+  개선
+- **관련 ADR**:
+  [ADR-009](file:///f:/usr/project/slightly-better-gh-search/docs/adr/ADR-009-tiered-cache-optimistic-fetch.md)
+
+#### Implementation Details
+
+**1. 계층 캐시** (`cache.ts`):
+
+- L1: 모듈 레벨 `Map` (Edge Function 수명과 동일, TTL/크기 제한 없음)
+- L2: 기존 Supabase DB 캐시 (ADR-008 그대로)
+- Singleflight: 동일 key DB 중복 조회 방지 (Promise 공유)
+- `getTieredCache()` / `setTieredCache()` 추가
+
+**2. Two-phase Search** (`github.ts`):
+
+- `fetchCodeSearch()` → `getSearchCache()` + `fetchCodeSearchFresh()` 분리
+- `getSearchCache()`: 캐시 읽기만 (ETag 포함)
+- `fetchCodeSearchFresh()`: conditional request + 캐시 write (fire-and-forget)
+
+**3. Repo 캐시 복구 + 최적화** (`github.ts`):
+
+- 이전에 테스트로 비활성화했던 repo 캐시 복구
+- ETag/304 로직 제거 → 순수 TTL 기반
+- 계층 캐시 적용 (L1 memory → L2 DB → GitHub API)
+
+**4. 옵티미스틱 병렬 오케스트레이션** (`index.ts`):
+
+- while 루프 내에서:
+  - 캐시 히트 시: conditional request + repo prefetch를 `Promise.all`로 병렬
+    실행
+  - 304: 캐시 데이터 + prefetch repo 그대로 사용
+  - 새 데이터: missing repo만 추가 fetch (L1에서 대부분 hit)
+  - 캐시 미스: 기존과 동일한 순차 실행
+
+#### Files Modified
+
+- `supabase/functions/search/cache.ts` — 계층 캐시 함수 추가
+- `supabase/functions/search/github.ts` — two-phase search, repo 계층 캐시로
+  전면 리팩터링
+- `supabase/functions/search/index.ts` — 옵티미스틱 병렬 오케스트레이션
+- `docs/adr/ADR-009-tiered-cache-optimistic-fetch.md` [NEW]
+
+---
+
 ## 2026-02-21
 
 ### Vault 스키마 직접 접근 제거 → RPC 래핑 전환
 
 #### Overview
 
-- **변경사항**: `.schema("vault")` 직접 접근을 모두 `public` 스키마 RPC 래핑 함수로 전환
-- **목적**: Supabase Cloud에서는 vault 스키마를 API에 노출할 수 없으므로 (로컬 전용),
-  프로덕션 호환성 확보
+- **변경사항**: `.schema("vault")` 직접 접근을 모두 `public` 스키마 RPC 래핑
+  함수로 전환
+- **목적**: Supabase Cloud에서는 vault 스키마를 API에 노출할 수 없으므로 (로컬
+  전용), 프로덕션 호환성 확보
 - **config.toml**: `[api]` 섹션 제거 (vault 스키마 노출 해제)
 
 #### Implementation Details
 
 **1. 새 RPC 함수 3개** (`20260221081302_add_vault_rpc_wrappers.sql`):
 
-| 함수 | 용도 | 권한 |
-|------|------|------|
-| `get_secret_by_name(secret_name)` → `text` | 시크릿 조회 | service_role |
+| 함수                                             | 용도        | 권한         |
+| ------------------------------------------------ | ----------- | ------------ |
+| `get_secret_by_name(secret_name)` → `text`       | 시크릿 조회 | service_role |
 | `create_vault_secret(p_secret, p_name)` → `uuid` | 시크릿 생성 | service_role |
-| `vault_secret_exists(secret_name)` → `boolean` | 존재 확인 | service_role |
+| `vault_secret_exists(secret_name)` → `boolean`   | 존재 확인   | service_role |
 
-모두 `SECURITY DEFINER`, `search_path = public, vault`로 vault 내부 함수/뷰에 접근.
+모두 `SECURITY DEFINER`, `search_path = public, vault`로 vault 내부 함수/뷰에
+접근.
 
 **2. Edge Function 변경**:
 
@@ -51,18 +106,20 @@
 
 #### Overview
 
-- **변경사항**: `get_secret_by_name`, `create_vault_secret`, `vault_secret_exists` 3개 RPC에 대한 pgTAP 테스트 추가
-- **목적**: 프로젝트 컨벤션 준수 (모든 RPC에 pgTAP 테스트 존재) 및 `SECURITY DEFINER` + 권한 설정 검증
+- **변경사항**: `get_secret_by_name`, `create_vault_secret`,
+  `vault_secret_exists` 3개 RPC에 대한 pgTAP 테스트 추가
+- **목적**: 프로젝트 컨벤션 준수 (모든 RPC에 pgTAP 테스트 존재) 및
+  `SECURITY DEFINER` + 권한 설정 검증
 
 #### Test Coverage (12 tests)
 
-| 카테고리 | 테스트 수 | 내용 |
-|----------|-----------|------|
-| Function metadata | 6 | `function_returns`, `is_definer` × 3 함수 |
-| `create_vault_secret` | 1 | service_role로 시크릿 생성 |
-| `get_secret_by_name` | 2 | 존재하는 시크릿 조회, 미존재 시 NULL |
-| `vault_secret_exists` | 2 | 존재 → true, 미존재 → false |
-| 권한 검증 | 1 | authenticated 유저 호출 시 permission denied |
+| 카테고리              | 테스트 수 | 내용                                         |
+| --------------------- | --------- | -------------------------------------------- |
+| Function metadata     | 6         | `function_returns`, `is_definer` × 3 함수    |
+| `create_vault_secret` | 1         | service_role로 시크릿 생성                   |
+| `get_secret_by_name`  | 2         | 존재하는 시크릿 조회, 미존재 시 NULL         |
+| `vault_secret_exists` | 2         | 존재 → true, 미존재 → false                  |
+| 권한 검증             | 1         | authenticated 유저 호출 시 permission denied |
 
 #### Files Modified
 
@@ -76,10 +133,11 @@
 
 #### Overview
 
-- **문제**: dbdev 설치 스크립트를 migration → seed.sql로 옮긴 후, `supabase db
+- **문제**: dbdev 설치 스크립트를 migration → seed.sql로 옮긴 후,
+  `supabase db
   reset` 시 `pgtle 스키마 없음` / `dbdev 스키마 없음` 에러 발생
-- **원인**: seed.sql 최상위 레벨에서 `SELECT`로 함수를 호출하면 스키마 해석 문제 발생
-  (정확한 내부 메커니즘 불명확, `--debug`로도 원인 안 나옴)
+- **원인**: seed.sql 최상위 레벨에서 `SELECT`로 함수를 호출하면 스키마 해석 문제
+  발생 (정확한 내부 메커니즘 불명확, `--debug`로도 원인 안 나옴)
 - **해결**: `DO $$ BEGIN ... END $$;` 블록으로 감싸고 `SELECT` → `PERFORM` 전환
 - **참고**: [TRB-012](troubleshooting/TRB-012-seed-sql-select-in-top-level.md)
 
@@ -104,7 +162,8 @@
 
 **1. 테스트 인프라 구축**
 
-Seed (`supabase/seed.sql`, 원래 migration이었으나 이동됨 — [TRB-012](troubleshooting/TRB-012-seed-sql-select-in-top-level.md) 참고):
+Seed (`supabase/seed.sql`, 원래 migration이었으나 이동됨 —
+[TRB-012](troubleshooting/TRB-012-seed-sql-select-in-top-level.md) 참고):
 
 - `pg_tle` + `http` extension 활성화
 - GitHub API에서 `dbdev` SQL 다운로드 → `pgtle.install_extension()` 설치

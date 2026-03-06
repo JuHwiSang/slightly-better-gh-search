@@ -2,7 +2,11 @@ import { evaluateFilter, validateFilter } from "./filter.ts";
 import type { SearchResponse, SearchResultItem } from "./types.ts";
 import { generateCorsHeaders, parseCorsConfig } from "./cors.ts";
 import { createAdminClient, createAnonClient, getGitHubToken } from "./auth.ts";
-import { fetchCodeSearch, fetchRepositories } from "./github.ts";
+import {
+  fetchCodeSearchFresh,
+  fetchRepositories,
+  getSearchCache,
+} from "./github.ts";
 import { ApiError } from "./errors.ts";
 import { config } from "./config.ts";
 
@@ -142,13 +146,89 @@ Deno.serve(async (req) => {
     const maxPage = currentPage + config.search.maxPagesToFetch - 1;
 
     while (filteredItems.length < limit && currentPage <= maxPage) {
-      const searchData = await fetchCodeSearch(
-        cacheClient,
-        githubToken,
-        query,
-        currentPage,
-        config.github.resultsPerPage,
-      );
+      // --- Optimistic parallel fetch ---
+      let searchData;
+      let repoMap: Map<string, import("./types.ts").RepositoryInfo>;
+
+      const cached = await getSearchCache(cacheClient, query, currentPage);
+
+      if (cached) {
+        // Cache hit: run conditional request + repo prefetch in parallel
+        const cachedRepos = [
+          ...new Set(
+            cached.data.items.slice(currentIndex).map((item) =>
+              item.repository.full_name
+            ),
+          ),
+        ];
+
+        const [freshResult, prefetchedRepoMap] = await Promise.all([
+          fetchCodeSearchFresh(
+            cacheClient,
+            githubToken,
+            query,
+            currentPage,
+            config.github.resultsPerPage,
+            cached.etag,
+          ),
+          fetchRepositories(cacheClient, githubToken, cachedRepos),
+        ]);
+
+        if (freshResult.notModified) {
+          // 304: cached search data + prefetched repos are valid
+          searchData = cached.data;
+          repoMap = prefetchedRepoMap;
+        } else {
+          // New data: use fresh search results, fetch missing repos
+          searchData = freshResult.data!;
+          const newRepos = [
+            ...new Set(
+              searchData.items.slice(currentIndex).map((item) =>
+                item.repository.full_name
+              ),
+            ),
+          ];
+          // Filter out repos already fetched in prefetch
+          const missingRepos = newRepos.filter((r) =>
+            !prefetchedRepoMap.has(r)
+          );
+
+          if (missingRepos.length > 0) {
+            const additionalRepos = await fetchRepositories(
+              cacheClient,
+              githubToken,
+              missingRepos,
+            );
+            // Merge: prefetched + additional
+            repoMap = new Map([...prefetchedRepoMap, ...additionalRepos]);
+          } else {
+            repoMap = prefetchedRepoMap;
+          }
+        }
+      } else {
+        // Cache miss: sequential fetch
+        const freshResult = await fetchCodeSearchFresh(
+          cacheClient,
+          githubToken,
+          query,
+          currentPage,
+          config.github.resultsPerPage,
+        );
+        searchData = freshResult.data!;
+
+        const uniqueRepos = [
+          ...new Set(
+            searchData.items.slice(currentIndex).map((item) =>
+              item.repository.full_name
+            ),
+          ),
+        ];
+        repoMap = await fetchRepositories(
+          cacheClient,
+          githubToken,
+          uniqueRepos,
+        );
+      }
 
       totalCount = searchData.total_count;
       incompleteResults = incompleteResults || searchData.incomplete_results;
@@ -158,21 +238,15 @@ Deno.serve(async (req) => {
         break;
       }
 
-      // Fetch repo info only for items from currentIndex onward
-      const uniqueRepos = [
-        ...new Set(
-          searchData.items.slice(currentIndex).map((item) => item.repository.full_name),
-        ),
-      ];
-      const repoMap = await fetchRepositories(cacheClient, githubToken, uniqueRepos);
-
       // Process items starting from currentIndex
       for (; currentIndex < searchData.items.length; currentIndex++) {
         const item = searchData.items[currentIndex];
 
         const repoInfo = repoMap.get(item.repository.full_name);
         if (!repoInfo) {
-          console.warn(`[Search] Skipping item — repo info missing: ${item.repository.full_name}`);
+          console.warn(
+            `[Search] Skipping item — repo info missing: ${item.repository.full_name}`,
+          );
           continue;
         }
 

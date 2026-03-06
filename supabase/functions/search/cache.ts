@@ -105,3 +105,76 @@ export async function setCachedData<T>(
     console.error(`Cache set exception for key ${key}:`, error);
   }
 }
+
+// ============================================================
+// Tiered Cache: In-memory L1 + DB L2 + Singleflight
+// ============================================================
+
+/**
+ * L1: In-memory cache (module-level, persists across requests in same worker)
+ * No TTL or size limit — shares Edge Function lifecycle.
+ */
+const memoryCache = new Map<string, { data: unknown; etag?: string }>();
+
+/**
+ * Singleflight: prevents duplicate in-flight DB queries for the same key.
+ * Promise is removed after resolution, so subsequent calls go through L1.
+ */
+const inflight = new Map<string, Promise<CachedData<unknown> | null>>();
+
+/**
+ * Get data from tiered cache: L1 memory → singleflight → L2 DB → null
+ */
+export function getTieredCache<T>(
+  supabase: SupabaseClient | null,
+  key: string,
+): Promise<CachedData<T> | null> {
+  // L1: Check in-memory cache
+  const memoryCached = memoryCache.get(key);
+  if (memoryCached) {
+    console.log(`L1 cache hit: ${key}`);
+    return Promise.resolve({
+      data: memoryCached.data as T,
+      etag: memoryCached.etag,
+    });
+  }
+
+  // Singleflight: if another call is already querying DB for this key, share its promise
+  const existing = inflight.get(key);
+  if (existing) {
+    console.log(`Singleflight join: ${key}`);
+    return existing as Promise<CachedData<T> | null>;
+  }
+
+  // L2: Query DB (with singleflight registration)
+  const dbPromise = getCachedData<T>(supabase, key).then((result) => {
+    // Promote to L1 on DB hit
+    if (result) {
+      memoryCache.set(key, { data: result.data, etag: result.etag });
+    }
+    return result;
+  }).finally(() => {
+    inflight.delete(key);
+  });
+
+  inflight.set(key, dbPromise as Promise<CachedData<unknown> | null>);
+  return dbPromise;
+}
+
+/**
+ * Set data in tiered cache: L1 immediately + L2 DB fire-and-forget
+ */
+export function setTieredCache<T>(
+  supabase: SupabaseClient | null,
+  key: string,
+  data: T,
+  etag: string | undefined,
+  ttlSeconds: number,
+): void {
+  // L1: Store immediately
+  memoryCache.set(key, { data, etag });
+
+  // L2: Fire-and-forget DB write
+  setCachedData(supabase, key, data, etag, ttlSeconds)
+    .catch(() => {/* already logged inside setCachedData */});
+}

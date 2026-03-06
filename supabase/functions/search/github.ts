@@ -1,42 +1,66 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GitHubCodeSearchResponse, RepositoryInfo } from "./types.ts";
-import { generateCacheKey, getCachedData, setCachedData } from "./cache.ts";
+import type { CachedData } from "./cache.ts";
+import {
+  generateCacheKey,
+  getCachedData,
+  getTieredCache,
+  setCachedData,
+  setTieredCache,
+} from "./cache.ts";
 import { config } from "./config.ts";
 
 const GITHUB_API_BASE = "https://api.github.com";
 
+// ============================================================
+// Code Search — Two-phase: cache check + fresh fetch
+// ============================================================
+
 /**
- * Fetch code search results from GitHub API with caching
+ * Phase 1: Check search cache (DB only, not tiered — search results change frequently)
+ * Returns cached data with ETag for conditional request, or null.
  */
-export async function fetchCodeSearch(
+export function getSearchCache(
+  cacheClient: SupabaseClient | null,
+  query: string,
+  page: number,
+): Promise<CachedData<GitHubCodeSearchResponse> | null> {
+  const cacheKey = generateCacheKey("github:search", { query, page });
+  return getCachedData<GitHubCodeSearchResponse>(cacheClient, cacheKey);
+}
+
+/**
+ * Result from fetchCodeSearchFresh — indicates whether cached data is still valid
+ */
+export interface FreshSearchResult {
+  data: GitHubCodeSearchResponse | null;
+  notModified: boolean;
+}
+
+/**
+ * Phase 2: Fetch from GitHub API with optional conditional request (If-None-Match)
+ *
+ * - If etag provided and GitHub returns 304: { data: null, notModified: true }
+ * - If new data: { data, notModified: false } + fire-and-forget cache write
+ */
+export async function fetchCodeSearchFresh(
   cacheClient: SupabaseClient | null,
   githubToken: string,
   query: string,
   page: number,
   perPage: number,
-): Promise<GitHubCodeSearchResponse> {
-  // Generate cache key
-  const cacheKey = generateCacheKey("github:search", {
-    query,
-    page,
-  });
-
-  // Try to get cached data
-  const cached = await getCachedData<GitHubCodeSearchResponse>(
-    cacheClient,
-    cacheKey,
-  );
-
+  etag?: string,
+): Promise<FreshSearchResult> {
   // Prepare request headers
   const searchHeaders: HeadersInit = {
     Authorization: `Bearer ${githubToken}`,
-    Accept: "application/vnd.github.text-match+json", // Request text-match metadata
+    Accept: "application/vnd.github.text-match+json",
     "X-GitHub-Api-Version": "2022-11-28",
   };
 
   // Add If-None-Match header if we have cached ETag
-  if (cached?.etag) {
-    searchHeaders["If-None-Match"] = cached.etag;
+  if (etag) {
+    searchHeaders["If-None-Match"] = etag;
   }
 
   // Fetch from GitHub API
@@ -51,14 +75,10 @@ export async function fetchCodeSearch(
 
   // Handle 304 Not Modified
   if (searchResponse.status === 304) {
-    if (cached) {
-      console.log(`Using cached data for: ${cacheKey}`);
-      return cached.data;
-    } else {
-      // Should not happen, but handle gracefully
-      console.warn(`Got 304 but no cached data for: ${cacheKey}`);
-      throw new Error("Unexpected 304 response without cached data");
-    }
+    console.log(
+      `[GitHub] Code search 304 Not Modified (query="${query}", page=${page})`,
+    );
+    return { data: null, notModified: true };
   }
 
   // Handle errors
@@ -85,7 +105,8 @@ export async function fetchCodeSearch(
     }`,
   );
 
-  // Fire-and-forget: don't block the response on cache write
+  // Fire-and-forget cache write
+  const cacheKey = generateCacheKey("github:search", { query, page });
   setCachedData(
     cacheClient,
     cacheKey,
@@ -94,54 +115,44 @@ export async function fetchCodeSearch(
     config.cache.ttl.codeSearch,
   ).catch(() => {/* already logged inside setCachedData */});
 
-  return searchData;
+  return { data: searchData, notModified: false };
 }
 
+// ============================================================
+// Repository — Tiered cache (L1 memory + L2 DB), no ETag
+// ============================================================
+
 /**
- * Fetch repository information from GitHub API
- * NOTE: Repo caching temporarily disabled for testing
+ * Fetch repository information from GitHub API with tiered caching.
+ * No ETag/304 — TTL-based only. Tiered cache (L1 memory + L2 DB)
+ * minimizes both DB queries and GitHub API calls.
  */
 export async function fetchRepository(
   cacheClient: SupabaseClient | null,
   githubToken: string,
   fullName: string,
 ): Promise<RepositoryInfo | null> {
-  // --- Repo cache disabled for testing ---
-  // const repoCacheKey = generateCacheKey("github:repo", {
-  //   fullName,
-  // });
+  // Tiered cache: L1 memory → singleflight → L2 DB
+  const repoCacheKey = generateCacheKey("github:repo", { fullName });
+  const cached = await getTieredCache<RepositoryInfo>(
+    cacheClient,
+    repoCacheKey,
+  );
+  if (cached) {
+    return cached.data;
+  }
 
-  // const cachedRepo = await getCachedData<RepositoryInfo>(
-  //   cacheClient,
-  //   repoCacheKey,
-  // );
-
+  // Cache miss — fetch from GitHub API (no ETag, simple fetch)
   const [owner, repo] = fullName.split("/");
   const repoUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}`;
 
-  const repoHeaders: HeadersInit = {
-    Authorization: `Bearer ${githubToken}`,
-    Accept: "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
-
-  // --- Repo cache disabled for testing ---
-  // if (cachedRepo?.etag) {
-  //   repoHeaders["If-None-Match"] = cachedRepo.etag;
-  // }
-
   const repoResponse = await fetch(repoUrl, {
-    headers: repoHeaders,
+    headers: {
+      Authorization: `Bearer ${githubToken}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
   });
-
-  // --- Repo cache disabled for testing ---
-  // if (repoResponse.status === 304) {
-  //   if (cachedRepo) {
-  //     console.log(`Using cached repo data for: ${fullName}`);
-  //     return cachedRepo.data;
-  //   }
-  //   return null;
-  // }
 
   // Handle errors
   if (!repoResponse.ok) {
@@ -156,7 +167,7 @@ export async function fetchRepository(
     return null;
   }
 
-  // Parse new data
+  // Parse and cache
   const repoData: RepositoryInfo = await repoResponse.json();
   console.log(
     `[GitHub] Repo fetch OK: ${fullName}, rate_limit_remaining=${
@@ -164,21 +175,21 @@ export async function fetchRepository(
     }`,
   );
 
-  // --- Repo cache disabled for testing ---
-  // const repoEtag = repoResponse.headers.get("ETag") || undefined;
-  // await setCachedData(
-  //   cacheClient,
-  //   repoCacheKey,
-  //   repoData,
-  //   repoEtag,
-  //   config.cache.ttl.repository,
-  // );
+  // Tiered cache write: L1 immediately + L2 fire-and-forget
+  setTieredCache(
+    cacheClient,
+    repoCacheKey,
+    repoData,
+    undefined, // No ETag for repos
+    config.cache.ttl.repository,
+  );
 
   return repoData;
 }
 
 /**
- * Fetch multiple repositories in parallel
+ * Fetch multiple repositories in parallel.
+ * Tiered cache (L1 memory) naturally deduplicates across pages.
  */
 export async function fetchRepositories(
   cacheClient: SupabaseClient | null,
