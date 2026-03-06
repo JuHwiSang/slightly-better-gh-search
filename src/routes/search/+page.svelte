@@ -9,7 +9,7 @@
 	import type { PageData } from './$types';
 
 	// SSR data from +page.server.ts
-	const props: PageData = $props();
+	const { data }: { data: PageData } = $props();
 
 	// State management — initialized from SSR data
 	let results = $state<SearchResultItem[]>([]);
@@ -31,7 +31,7 @@
 		isLoading = false;
 
 		// Wait for streamed promise
-		props.streamed.searchResult.then((res) => {
+		data.streamed.searchResult.then((res) => {
 			if (res.error) {
 				error = res.error;
 			} else if (res.initialData) {
@@ -55,8 +55,8 @@
 				'search',
 				{
 					body: {
-						query: props.query,
-						...(props.filter && { filter: props.filter }),
+						query: data.query,
+						...(data.filter && { filter: data.filter }),
 						cursor,
 						limit: 10,
 					},
@@ -99,10 +99,10 @@
 	<main class="mx-auto flex w-full max-w-[1024px] flex-1 flex-col gap-6 px-4 py-8">
 		<!-- Search Bar Section -->
 		<section class="flex flex-col gap-4">
-			<SearchBar variant="search" query={props.query} filter={props.filter} />
+			<SearchBar variant="search" query={data.query} filter={data.filter} />
 		</section>
 
-		{#await props.streamed.searchResult}
+		{#await data.streamed.searchResult}
 			<div class="flex items-center justify-center py-16">
 				<div class="flex items-center gap-2 text-text-muted">
 					<div class="h-5 w-5 animate-spin rounded-full border-2 border-accent-blue border-t-transparent"></div>
