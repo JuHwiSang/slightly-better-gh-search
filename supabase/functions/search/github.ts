@@ -125,14 +125,17 @@ export class GitHubClient {
    * minimizes both DB queries and GitHub API calls.
    */
   async fetchRepository(fullName: string): Promise<RepositoryInfo | null> {
-    // Tiered cache: L1 memory → singleflight → L2 DB
-    const repoCacheKey = generateCacheKey("github:repo", { fullName });
-    const cached = await this.cache.getTiered<RepositoryInfo>(repoCacheKey);
-    if (cached) {
-      return cached.data;
-    }
+    const repos = await this.fetchRepositories([fullName]);
+    return repos.get(fullName) ?? null;
+  }
 
-    // Cache miss — fetch from GitHub API
+  /**
+   * Fetch a single repository directly from GitHub API.
+   * Does NOT check or update cache.
+   */
+  private async fetchRepositoryFresh(
+    fullName: string,
+  ): Promise<RepositoryInfo | null> {
     const [owner, repo] = fullName.split("/");
     const repoUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}`;
 
@@ -163,34 +166,65 @@ export class GitHubClient {
       }`,
     );
 
-    // Tiered cache write: L1 immediately + L2 fire-and-forget
-    this.cache.setTiered(
-      repoCacheKey,
-      repoData,
-      undefined, // No ETag for repos
-      config.cache.ttl.repository,
-    );
-
     return repoData;
   }
 
   /**
    * Fetch multiple repositories in parallel.
-   * Tiered cache (L1 memory) naturally deduplicates across pages.
+   * Tiered cache (L1 memory + L2 DB Batch) naturally deduplicates across pages,
+   * minimizing both DB queries and API calls.
    */
   async fetchRepositories(
     fullNames: string[],
   ): Promise<Map<string, RepositoryInfo>> {
-    const repoMap = new Map<string, RepositoryInfo>();
+    if (fullNames.length === 0) return new Map();
 
-    const repoPromises = fullNames.map(async (fullName) => {
-      const repoData = await this.fetchRepository(fullName);
-      if (repoData) {
-        repoMap.set(fullName, repoData);
-      }
+    const repoMap = new Map<string, RepositoryInfo>();
+    const keysToFullNames = new Map<string, string>();
+    const keys = fullNames.map((fullName) => {
+      const key = generateCacheKey("github:repo", { fullName });
+      keysToFullNames.set(key, fullName);
+      return key;
     });
 
-    await Promise.all(repoPromises);
+    // 1. Check Tiered Cache in Batch
+    const cachedMap = await this.cache.getTieredBatch<RepositoryInfo>(keys);
+
+    for (const [key, cached] of cachedMap.entries()) {
+      const fullName = keysToFullNames.get(key)!;
+      repoMap.set(fullName, cached.data);
+    }
+
+    // 2. Identify missing repositories
+    const missingFullNames = fullNames.filter((name) => !repoMap.has(name));
+
+    if (missingFullNames.length === 0) {
+      return repoMap;
+    }
+
+    // 3. Fetch missing repositories from GitHub API concurrently
+    const missingPromises = missingFullNames.map((fullName) =>
+      this.fetchRepositoryFresh(fullName)
+    );
+    const freshRepos = (await Promise.all(missingPromises)).filter(
+      (r): r is RepositoryInfo => r !== null,
+    );
+
+    // 4. Update cache in batch for successfully fetched repositories
+    if (freshRepos.length > 0) {
+      const cacheItems = freshRepos.map((repo) => ({
+        key: generateCacheKey("github:repo", { fullName: repo.full_name }),
+        data: repo,
+        ttlSeconds: config.cache.ttl.repository,
+      }));
+
+      this.cache.setTieredBatch(cacheItems);
+
+      for (const repo of freshRepos) {
+        repoMap.set(repo.full_name, repo);
+      }
+    }
+
     return repoMap;
   }
 }

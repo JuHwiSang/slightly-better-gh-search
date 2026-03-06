@@ -128,6 +128,74 @@ export class CacheService {
     }
   }
 
+  /**
+   * Get multiple cached items from Supabase DB.
+   * Returns a Map of key -> CachedData.
+   */
+  async getMultiple<T>(keys: string[]): Promise<Map<string, CachedData<T>>> {
+    if (!this.supabase || keys.length === 0) return new Map();
+
+    try {
+      const { data, error } = await this.supabase
+        .from("cache")
+        .select("key, data, etag")
+        .in("key", keys)
+        .gt("expires_at", new Date().toISOString());
+
+      if (error) {
+        console.error(`Cache batch read error:`, error.message);
+        return new Map();
+      }
+
+      const result = new Map<string, CachedData<T>>();
+      if (data) {
+        for (const row of data) {
+          result.set(row.key, {
+            data: row.data as T,
+            etag: row.etag ?? undefined,
+          });
+        }
+      }
+      return result;
+    } catch (error) {
+      console.error(`Cache batch get exception:`, error);
+      return new Map();
+    }
+  }
+
+  /**
+   * Set multiple cached items in Supabase DB with TTL.
+   * Uses UPSERT so repeated writes refresh the expiry.
+   * Errors are swallowed — cache failure must never break the main request.
+   */
+  async setMultiple<T>(
+    items: { key: string; data: T; etag?: string; ttlSeconds: number }[],
+  ): Promise<void> {
+    if (!this.supabase || items.length === 0) return;
+
+    try {
+      const rows = items.map((item) => ({
+        key: item.key,
+        data: item.data,
+        etag: item.etag ?? null,
+        expires_at: new Date(Date.now() + item.ttlSeconds * 1000).toISOString(),
+        created_at: new Date().toISOString(),
+      }));
+
+      const { error } = await this.supabase
+        .from("cache")
+        .upsert(rows, { onConflict: "key" });
+
+      if (error) {
+        console.error(`Cache batch write error:`, error.message);
+        return;
+      }
+      console.log(`Cache batch set: ${items.length} items`);
+    } catch (error) {
+      console.error(`Cache batch set exception:`, error);
+    }
+  }
+
   // ============================================================
   // Tiered Cache: L1 memory → singleflight → L2 DB
   // ============================================================
@@ -186,5 +254,95 @@ export class CacheService {
     // L2: Fire-and-forget DB write
     this.set(key, data, etag, ttlSeconds)
       .catch(() => {/* already logged inside set */});
+  }
+
+  /**
+   * Get data from tiered cache in batch: L1 memory → singleflight → L2 DB.
+   * Returns a Map of key -> CachedData.
+   */
+  async getTieredBatch<T>(keys: string[]): Promise<Map<string, CachedData<T>>> {
+    const result = new Map<string, CachedData<T>>();
+    if (keys.length === 0) return result;
+
+    const missingKeys: string[] = [];
+    const inflightPromises: Promise<CachedData<unknown> | null>[] = [];
+    const inflightKeys: string[] = [];
+
+    // 1. Check L1 memory and inflight
+    for (const key of keys) {
+      const memoryCached = this.memoryCache.get(key);
+      if (memoryCached) {
+        result.set(key, {
+          data: memoryCached.data as T,
+          etag: memoryCached.etag,
+        });
+        continue;
+      }
+
+      const existing = this.inflight.get(key);
+      if (existing) {
+        inflightPromises.push(existing);
+        inflightKeys.push(key);
+        continue;
+      }
+
+      missingKeys.push(key);
+    }
+
+    // 2. Fetch missing from DB
+    if (missingKeys.length > 0) {
+      // Create a single promise for the DB batch fetch
+      const dbPromise = this.getMultiple<T>(missingKeys);
+
+      // Register individual inflight promises for other concurrent requests
+      for (const key of missingKeys) {
+        const p = dbPromise.then((map) => map.get(key) || null);
+        this.inflight.set(key, p as Promise<CachedData<unknown> | null>);
+      }
+
+      try {
+        const dbResult = await dbPromise;
+        for (const [key, data] of dbResult.entries()) {
+          this.memoryCache.set(key, data); // Promote to L1
+          result.set(key, data);
+        }
+      } finally {
+        for (const key of missingKeys) {
+          this.inflight.delete(key);
+        }
+      }
+    }
+
+    // 3. Await inflight promises
+    if (inflightPromises.length > 0) {
+      const resolved = await Promise.all(inflightPromises);
+      for (let i = 0; i < resolved.length; i++) {
+        const res = resolved[i];
+        if (res) {
+          result.set(inflightKeys[i], res as CachedData<T>);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Set multiple items in tiered cache: L1 immediately + L2 DB fire-and-forget.
+   */
+  setTieredBatch<T>(
+    items: { key: string; data: T; etag?: string; ttlSeconds: number }[],
+  ): void {
+    if (items.length === 0) return;
+
+    // L1: Store immediately
+    for (const item of items) {
+      this.memoryCache.set(item.key, { data: item.data, etag: item.etag });
+    }
+
+    // L2: Fire-and-forget DB write in batch
+    this.setMultiple(items).catch(
+      () => {/* errors swallowed in setMultiple */},
+    );
   }
 }
