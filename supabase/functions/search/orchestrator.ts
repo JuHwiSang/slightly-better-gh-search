@@ -80,22 +80,8 @@ export class SearchOrchestrator {
                     continue;
                 }
 
-                if (filter.isActive) {
-                    try {
-                        if (!filter.evaluate(repoInfo)) {
-                            continue;
-                        }
-                    } catch (error: unknown) {
-                        // FilterEngine already throws ApiError, but re-wrap if needed
-                        if (error instanceof ApiError) throw error;
-                        const errorMessage = error instanceof Error
-                            ? error.message
-                            : String(error);
-                        throw new ApiError(
-                            400,
-                            `Filter evaluation error: ${errorMessage}`,
-                        );
-                    }
+                if (filter.isActive && !filter.evaluate(repoInfo)) {
+                    continue;
                 }
 
                 filteredItems.push({
