@@ -1,5 +1,5 @@
 import { createAdminClient, createAnonClient } from "../search/auth.ts";
-import { generateCorsHeaders, parseCorsConfig } from "../search/cors.ts";
+import { buildCorsHeaders } from "../search/cors.ts";
 import { ApiError } from "../search/errors.ts";
 
 /**
@@ -20,9 +20,8 @@ import { ApiError } from "../search/errors.ts";
  * - 500: Unexpected internal errors
  */
 Deno.serve(async (req) => {
-    // Parse CORS configuration
-    const corsConfig = parseCorsConfig(req);
-    const corsHeaders = generateCorsHeaders(corsConfig);
+    // Generate CORS headers
+    const corsHeaders = buildCorsHeaders(req);
 
     // Handle CORS preflight
     if (req.method === "OPTIONS") {

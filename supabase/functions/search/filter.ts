@@ -1,32 +1,83 @@
 import { compileExpression } from "filtrex";
 import type { RepositoryInfo } from "./types.ts";
+import { ApiError } from "./errors.ts";
 
 /**
- * Safely evaluates a filter expression against repository data
- * Uses filtrex library to avoid eval() security issues
+ * Compiled filter engine for evaluating filter expressions against repositories.
  *
- * @param filterExpression - User-provided filter expression (e.g., "stars > 100 && language == 'TypeScript'")
- * @param repo - Repository information to filter against
- * @returns true if the repository matches the filter, false otherwise
+ * Compiles the expression once on construction and reuses it for every evaluate() call.
+ * Uses filtrex library to avoid eval() security issues.
+ *
+ * @example
+ * ```ts
+ * const engine = new FilterEngine("stars > 100 && language == 'TypeScript'");
+ * const passes = engine.evaluate(repoInfo); // true/false
+ * ```
  */
-export function evaluateFilter(
-  filterExpression: string,
-  repo: RepositoryInfo,
-): boolean {
-  if (!filterExpression || filterExpression.trim() === "") {
-    return true; // No filter means all items pass
+export class FilterEngine {
+  private readonly filterFn:
+    | ((context: Record<string, unknown>) => unknown)
+    | null;
+
+  /**
+   * Compile the filter expression.
+   * Empty/blank expression → pass-through (all items match).
+   * Invalid expression → throws ApiError(400).
+   */
+  constructor(filterExpression: string) {
+    if (!filterExpression || filterExpression.trim() === "") {
+      this.filterFn = null;
+      return;
+    }
+
+    try {
+      this.filterFn = compileExpression(filterExpression, {
+        extraFunctions: {},
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
+      throw new ApiError(
+        400,
+        `Invalid filter expression: ${errorMessage}`,
+      );
+    }
   }
 
-  try {
-    // Compile the filter expression
-    const filterFn = compileExpression(filterExpression, {
-      extraFunctions: {
-        // Add custom functions if needed
-      },
-    });
+  /** Whether this engine has an active filter (non-empty expression). */
+  get isActive(): boolean {
+    return this.filterFn !== null;
+  }
 
-    // Create a context object with repository fields
-    const context = {
+  /**
+   * Evaluate the compiled filter against a repository.
+   * Returns true if the repository matches (or no filter is active).
+   * @throws {ApiError} 400 if evaluation fails at runtime.
+   */
+  evaluate(repo: RepositoryInfo): boolean {
+    if (!this.filterFn) return true;
+
+    try {
+      const context = FilterEngine.buildContext(repo);
+      return Boolean(this.filterFn(context));
+    } catch (error: unknown) {
+      console.error("Filter evaluation error:", error);
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
+      throw new ApiError(400, `Filter evaluation error: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Build the evaluation context from repository info.
+   * Maps repository fields to user-friendly filter variable names.
+   */
+  private static buildContext(
+    repo: RepositoryInfo,
+  ): Record<string, unknown> {
+    return {
       // Statistics
       stars: repo.stargazers_count,
       watchers: repo.watchers_count,
@@ -63,7 +114,7 @@ export function evaluateFilter(
       has_discussions: repo.has_discussions,
       has_projects: repo.has_projects,
 
-      // Dates (convert to timestamps for comparison)
+      // Dates (timestamps for comparison)
       created_at: new Date(repo.created_at).getTime(),
       updated_at: new Date(repo.updated_at).getTime(),
       pushed_at: new Date(repo.pushed_at).getTime(),
@@ -71,38 +122,6 @@ export function evaluateFilter(
       // Owner
       owner: repo.owner.login,
       owner_type: repo.owner.type,
-    };
-
-    // Evaluate the filter
-    return Boolean(filterFn(context));
-  } catch (error: unknown) {
-    console.error("Filter evaluation error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    // If filter is invalid, log error and return false
-    throw new Error(`Invalid filter expression: ${errorMessage}`);
-  }
-}
-
-/**
- * Validates a filter expression without evaluating it
- * Useful for checking syntax before processing
- */
-export function validateFilter(filterExpression: string): {
-  valid: boolean;
-  error?: string;
-} {
-  if (!filterExpression || filterExpression.trim() === "") {
-    return { valid: true };
-  }
-
-  try {
-    compileExpression(filterExpression);
-    return { valid: true };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      valid: false,
-      error: errorMessage,
     };
   }
 }

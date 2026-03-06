@@ -1,356 +1,68 @@
-import { evaluateFilter, validateFilter } from "./filter.ts";
-import type { SearchResponse, SearchResultItem } from "./types.ts";
-import { generateCorsHeaders, parseCorsConfig } from "./cors.ts";
+import { buildCorsHeaders } from "./cors.ts";
 import { createAdminClient, createAnonClient, getGitHubToken } from "./auth.ts";
-import {
-  fetchCodeSearchFresh,
-  fetchRepositories,
-  getSearchCache,
-} from "./github.ts";
+import { CacheService } from "./cache.ts";
+import { GitHubClient } from "./github.ts";
+import { SearchRequest } from "./request.ts";
+import { SearchOrchestrator } from "./orchestrator.ts";
+import { ResponseBuilder } from "./response.ts";
 import { ApiError } from "./errors.ts";
-import { config } from "./config.ts";
-
-/**
- * Parse and validate cursor parameter
- * @param cursor - Cursor string in format "page:index" or just "page"
- * @returns Object with validated page and index, or null if invalid
- */
-export function parseCursor(cursor: string | null): {
-  page: number;
-  index: number;
-} | null {
-  if (!cursor) {
-    return null;
-  }
-
-  const parts = cursor.split(":");
-
-  if (parts.length === 2) {
-    // New format: "page:index"
-    const page = parseInt(parts[0], 10);
-    const index = parseInt(parts[1], 10);
-
-    // Validate parsed values
-    if (
-      isNaN(page) || isNaN(index) ||
-      page < 1 || page > config.github.maxPage ||
-      index < 0 || index >= config.github.resultsPerPage
-    ) {
-      return null; // Invalid cursor
-    }
-
-    return { page, index };
-  } else if (parts.length === 1) {
-    // Backward compatibility: treat as page number only
-    const page = parseInt(parts[0], 10);
-
-    if (isNaN(page) || page < 1 || page > config.github.maxPage) {
-      return null; // Invalid cursor
-    }
-
-    return { page, index: 0 };
-  }
-
-  return null; // Invalid format
-}
 
 /**
  * Search Edge Function
  *
+ * Thin handler — delegates to focused classes:
+ * - SearchRequest: input parsing + validation
+ * - SearchOrchestrator: fetch loop + filtering
+ * - ResponseBuilder: response construction
+ *
  * Possible API errors:
- * - 400: Missing/empty query, invalid cursor format, invalid limit, filter evaluation error
- * - 401: Missing Authorization header, GitHub token not found
+ * - 400: Missing/empty query, invalid cursor, invalid limit, filter error
+ * - 401: Missing auth header, GitHub token not found
  * - 500: Unexpected internal errors
  */
 Deno.serve(async (req) => {
-  // Parse CORS configuration
-  const corsConfig = parseCorsConfig(req);
-  const corsHeaders = generateCorsHeaders(corsConfig);
+  const corsHeaders = buildCorsHeaders(req);
+  const response = new ResponseBuilder(corsHeaders);
 
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return response.preflight();
   }
 
-  // Track request context for error logging (declared outside try for catch access)
-  let query = "";
-  let cursor: string | null = null;
-  let limit = config.search.defaultLimit;
+  // Track for error logging
+  let request: SearchRequest | null = null;
 
   try {
-    // Parse request body (POST)
-    const body = await req.json();
-    query = body.query || "";
-    const filter = body.filter || "";
-    cursor = body.cursor || null;
-    limit = parseInt(
-      body.limit?.toString() || config.search.defaultLimit.toString(),
-      10,
-    );
+    request = new SearchRequest(await req.json());
 
-    // Validate query
-    if (!query || query.trim() === "") {
-      throw new ApiError(400, "Query parameter is required");
-    }
-
-    // Validate limit
-    if (isNaN(limit) || limit < 1 || limit > config.search.maxLimit) {
-      throw new ApiError(
-        400,
-        `Invalid limit parameter. Must be between 1 and ${config.search.maxLimit}.`,
-      );
-    }
-
-    // Get authorization header
+    // Authenticate
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new ApiError(401, "Missing authorization header");
     }
 
-    // Initialize Supabase client and get GitHub token
     const supabaseClient = createAnonClient(authHeader);
     const githubToken = await getGitHubToken(supabaseClient);
 
-    // Initialize Supabase admin client for cache operations
-    const cacheClient = createAdminClient();
+    // Wire dependencies and execute
+    const cache = new CacheService(createAdminClient());
+    const github = new GitHubClient(cache, githubToken);
+    const orchestrator = new SearchOrchestrator(github);
+    const result = await orchestrator.execute(request);
 
-    // Parse and validate cursor
-    const cursorData = parseCursor(cursor);
-    if (cursor && !cursorData) {
-      throw new ApiError(
-        400,
-        `Invalid cursor format. Expected 'page:index' where page is 1-${config.github.maxPage} and index is 0-${
-          config.github.resultsPerPage - 1
-        }.`,
-      );
-    }
-
-    // Validate filter expression early (before GitHub API calls)
-    if (filter && filter.trim() !== "") {
-      const validation = validateFilter(filter);
-      if (!validation.valid) {
-        throw new ApiError(
-          400,
-          `Invalid filter expression: ${validation.error}`,
-        );
-      }
-    }
-
-    // Fetch and filter results
-    const filteredItems: SearchResultItem[] = [];
-    let currentPage = cursorData?.page ?? 1;
-    let currentIndex = cursorData?.index ?? 0;
-    let totalCount = 0;
-    let hasMore = true;
-    let incompleteResults = false;
-    const maxPage = currentPage + config.search.maxPagesToFetch - 1;
-
-    while (filteredItems.length < limit && currentPage <= maxPage) {
-      // --- Optimistic parallel fetch ---
-      let searchData;
-      let repoMap: Map<string, import("./types.ts").RepositoryInfo>;
-
-      const cached = await getSearchCache(cacheClient, query, currentPage);
-
-      if (cached) {
-        // Cache hit: run conditional request + repo prefetch in parallel
-        const cachedRepos = [
-          ...new Set(
-            cached.data.items.slice(currentIndex).map((item) =>
-              item.repository.full_name
-            ),
-          ),
-        ];
-
-        const [freshResult, prefetchedRepoMap] = await Promise.all([
-          fetchCodeSearchFresh(
-            cacheClient,
-            githubToken,
-            query,
-            currentPage,
-            config.github.resultsPerPage,
-            cached.etag,
-          ),
-          fetchRepositories(cacheClient, githubToken, cachedRepos),
-        ]);
-
-        if (freshResult.notModified) {
-          // 304: cached search data + prefetched repos are valid
-          searchData = cached.data;
-          repoMap = prefetchedRepoMap;
-        } else {
-          // New data: use fresh search results, fetch missing repos
-          searchData = freshResult.data!;
-          const newRepos = [
-            ...new Set(
-              searchData.items.slice(currentIndex).map((item) =>
-                item.repository.full_name
-              ),
-            ),
-          ];
-          // Filter out repos already fetched in prefetch
-          const missingRepos = newRepos.filter((r) =>
-            !prefetchedRepoMap.has(r)
-          );
-
-          if (missingRepos.length > 0) {
-            const additionalRepos = await fetchRepositories(
-              cacheClient,
-              githubToken,
-              missingRepos,
-            );
-            // Merge: prefetched + additional
-            repoMap = new Map([...prefetchedRepoMap, ...additionalRepos]);
-          } else {
-            repoMap = prefetchedRepoMap;
-          }
-        }
-      } else {
-        // Cache miss: sequential fetch
-        const freshResult = await fetchCodeSearchFresh(
-          cacheClient,
-          githubToken,
-          query,
-          currentPage,
-          config.github.resultsPerPage,
-        );
-        searchData = freshResult.data!;
-
-        const uniqueRepos = [
-          ...new Set(
-            searchData.items.slice(currentIndex).map((item) =>
-              item.repository.full_name
-            ),
-          ),
-        ];
-        repoMap = await fetchRepositories(
-          cacheClient,
-          githubToken,
-          uniqueRepos,
-        );
-      }
-
-      totalCount = searchData.total_count;
-      incompleteResults = incompleteResults || searchData.incomplete_results;
-
-      if (searchData.items.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      // Process items starting from currentIndex
-      for (; currentIndex < searchData.items.length; currentIndex++) {
-        const item = searchData.items[currentIndex];
-
-        const repoInfo = repoMap.get(item.repository.full_name);
-        if (!repoInfo) {
-          console.warn(
-            `[Search] Skipping item — repo info missing: ${item.repository.full_name}`,
-          );
-          continue;
-        }
-
-        if (filter && filter.trim() !== "") {
-          try {
-            if (!evaluateFilter(filter, repoInfo)) {
-              continue;
-            }
-          } catch (error: unknown) {
-            const errorMessage = error instanceof Error
-              ? error.message
-              : String(error);
-            throw new ApiError(
-              400,
-              `Filter evaluation error: ${errorMessage}`,
-            );
-          }
-        }
-
-        filteredItems.push({
-          name: item.name,
-          path: item.path,
-          sha: item.sha,
-          url: item.url,
-          git_url: item.git_url,
-          html_url: item.html_url,
-          repository: repoInfo,
-          score: item.score,
-          text_matches: item.text_matches,
-        });
-
-        if (filteredItems.length >= limit) {
-          currentIndex++; // point to next unprocessed item
-          break;
-        }
-      }
-
-      if (filteredItems.length >= limit) break;
-
-      // Page exhausted — move to next page
-      currentPage++;
-      currentIndex = 0;
-
-      if (currentPage * config.github.resultsPerPage >= totalCount) {
-        hasMore = false;
-        break;
-      }
-    }
-
-    // Normalize: if currentIndex went past the page, advance to next page
-    if (currentIndex >= config.github.resultsPerPage) {
-      currentPage++;
-      currentIndex = 0;
-    }
-
-    const nextCursor = (hasMore && filteredItems.length >= limit)
-      ? `${currentPage}:${currentIndex}`
-      : null;
-
-    // Prepare response
-    const response: SearchResponse = {
-      items: filteredItems.slice(0, limit),
-      next_cursor: nextCursor,
-      total_count: totalCount,
-      has_more: hasMore && filteredItems.length >= limit,
-      incomplete_results: incompleteResults,
-    };
-
-    return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return response.success(result);
   } catch (error: unknown) {
     console.error(
       "[Search] Unhandled error",
-      `\n  query="${query}", cursor=${cursor}, limit=${limit}`,
+      `\n  query="${request?.query ?? ""}", cursor=${
+        request?.cursor ?? null
+      }, limit=${request?.limit ?? ""}`,
       "\n  Error:",
       error,
     );
 
-    // Handle ApiError with specific status codes
     if (error instanceof ApiError) {
-      return new Response(
-        JSON.stringify({
-          error: error.message,
-          ...(error.details && { details: error.details }),
-        }),
-        {
-          status: error.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return response.apiError(error);
     }
-
-    // Handle unexpected errors
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        details: errorMessage,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return response.internalError(error);
   }
 });

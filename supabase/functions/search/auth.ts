@@ -2,37 +2,29 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "./errors.ts";
 import { config } from "./config.ts";
 
-/**
- * Create a Supabase client for a specific role
- */
-function createBaseClient(
-  key: string,
-  authHeader?: string,
-): SupabaseClient {
-  return createClient(config.supabase.url, key, {
-    global: {
-      headers: authHeader ? { Authorization: authHeader } : {},
-    },
+// ============================================================
+// Supabase Client Factory
+// ============================================================
+
+/** Create a Supabase anon client with user's authorization header. */
+export function createAnonClient(authHeader: string): SupabaseClient {
+  return createClient(config.supabase.url, config.supabase.anonKey, {
+    global: { headers: { Authorization: authHeader } },
   });
 }
 
-/**
- * Initialize Supabase client with anon key and authorization header for user verification
- */
-export function createAnonClient(authHeader: string): SupabaseClient {
-  return createBaseClient(config.supabase.anonKey, authHeader);
-}
-
-/**
- * Initialize Supabase admin client with service_role key for public schema operations
- */
+/** Create a Supabase admin client with service_role key. */
 export function createAdminClient(): SupabaseClient {
-  return createBaseClient(config.supabase.serviceRoleKey);
+  return createClient(config.supabase.url, config.supabase.serviceRoleKey);
 }
 
+// ============================================================
+// GitHub Token Retrieval
+// ============================================================
+
 /**
- * Get GitHub OAuth token from Supabase Vault
- * @throws {ApiError} 401 if user is not authenticated or token is missing
+ * Verify user authentication and retrieve GitHub OAuth token from Vault.
+ * @throws {ApiError} 401 if not authenticated or token missing
  */
 export async function getGitHubToken(
   supabaseClient: SupabaseClient,
@@ -45,17 +37,11 @@ export async function getGitHubToken(
 
   if (userError) {
     console.error("[Auth] getUser failed:", userError.message);
-    throw new ApiError(
-      401,
-      "Unauthorized. Please sign in with GitHub.",
-    );
+    throw new ApiError(401, "Unauthorized. Please sign in with GitHub.");
   }
   if (!user) {
     console.warn("[Auth] getUser returned no user");
-    throw new ApiError(
-      401,
-      "Unauthorized. Please sign in with GitHub.",
-    );
+    throw new ApiError(401, "Unauthorized. Please sign in with GitHub.");
   }
   console.log(`[Auth] User verified: ${user.id}`);
 
@@ -66,7 +52,12 @@ export async function getGitHubToken(
     .rpc("get_secret_by_name", { secret_name: secretName });
 
   if (error) {
-    console.error("[Auth] Vault query failed for user", user.id, ":", error.message);
+    console.error(
+      "[Auth] Vault query failed for user",
+      user.id,
+      ":",
+      error.message,
+    );
     throw new ApiError(
       401,
       "GitHub token not found. Please re-authenticate with GitHub.",

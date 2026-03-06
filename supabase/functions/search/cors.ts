@@ -1,35 +1,20 @@
 /**
- * CORS configuration and header generation
+ * CORS configuration and header generation.
  */
 
 import { config } from "./config.ts";
 
-export interface CorsConfig {
-  allowedOrigins: string[];
-  origin: string;
-}
-
 /**
- * Parse CORS configuration from environment and request
+ * Generate CORS headers for the given request.
+ * Checks the request's Origin against the configured allowed origins.
  */
-export function parseCorsConfig(req: Request): CorsConfig {
+export function buildCorsHeaders(req: Request): HeadersInit {
   const origin = req.headers.get("Origin") || "";
+  const isAllowed = config.cors.allowedOrigins.includes(origin) ||
+    config.cors.allowedOrigins.includes("*");
 
   return {
-    allowedOrigins: config.cors.allowedOrigins,
-    origin,
-  };
-}
-
-/**
- * Generate CORS headers based on configuration
- */
-export function generateCorsHeaders(config: CorsConfig): HeadersInit {
-  const isAllowedOrigin = config.allowedOrigins.includes(config.origin) ||
-    config.allowedOrigins.includes("*");
-
-  return {
-    "Access-Control-Allow-Origin": isAllowedOrigin ? config.origin : "null",
+    "Access-Control-Allow-Origin": isAllowed ? origin : "null",
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Credentials": "true",
