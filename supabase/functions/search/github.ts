@@ -80,7 +80,9 @@ export async function fetchCodeSearch(
   const searchData: GitHubCodeSearchResponse = await searchResponse.json();
   const newEtag = searchResponse.headers.get("ETag") || undefined;
   console.log(
-    `[GitHub] Code search OK (query="${query}", page=${page}): ${searchData.total_count} total, ${searchData.items.length} items, rate_limit_remaining=${searchResponse.headers.get("X-RateLimit-Remaining")}`,
+    `[GitHub] Code search OK (query="${query}", page=${page}): ${searchData.total_count} total, ${searchData.items.length} items, rate_limit_remaining=${
+      searchResponse.headers.get("X-RateLimit-Remaining")
+    }`,
   );
 
   // Cache the new data with ETag (TTL from config for volatile search results)
@@ -96,23 +98,23 @@ export async function fetchCodeSearch(
 }
 
 /**
- * Fetch repository information from GitHub API with caching
+ * Fetch repository information from GitHub API
+ * NOTE: Repo caching temporarily disabled for testing
  */
 export async function fetchRepository(
   cacheClient: SupabaseClient | null,
   githubToken: string,
   fullName: string,
 ): Promise<RepositoryInfo | null> {
-  // Generate cache key
-  const repoCacheKey = generateCacheKey("github:repo", {
-    fullName,
-  });
+  // --- Repo cache disabled for testing ---
+  // const repoCacheKey = generateCacheKey("github:repo", {
+  //   fullName,
+  // });
 
-  // Try to get cached data
-  const cachedRepo = await getCachedData<RepositoryInfo>(
-    cacheClient,
-    repoCacheKey,
-  );
+  // const cachedRepo = await getCachedData<RepositoryInfo>(
+  //   cacheClient,
+  //   repoCacheKey,
+  // );
 
   const [owner, repo] = fullName.split("/");
   const repoUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}`;
@@ -123,23 +125,23 @@ export async function fetchRepository(
     "X-GitHub-Api-Version": "2022-11-28",
   };
 
-  // Add If-None-Match header if we have cached ETag
-  if (cachedRepo?.etag) {
-    repoHeaders["If-None-Match"] = cachedRepo.etag;
-  }
+  // --- Repo cache disabled for testing ---
+  // if (cachedRepo?.etag) {
+  //   repoHeaders["If-None-Match"] = cachedRepo.etag;
+  // }
 
   const repoResponse = await fetch(repoUrl, {
     headers: repoHeaders,
   });
 
-  // Handle 304 Not Modified
-  if (repoResponse.status === 304) {
-    if (cachedRepo) {
-      console.log(`Using cached repo data for: ${fullName}`);
-      return cachedRepo.data;
-    }
-    return null;
-  }
+  // --- Repo cache disabled for testing ---
+  // if (repoResponse.status === 304) {
+  //   if (cachedRepo) {
+  //     console.log(`Using cached repo data for: ${fullName}`);
+  //     return cachedRepo.data;
+  //   }
+  //   return null;
+  // }
 
   // Handle errors
   if (!repoResponse.ok) {
@@ -156,19 +158,21 @@ export async function fetchRepository(
 
   // Parse new data
   const repoData: RepositoryInfo = await repoResponse.json();
-  const repoEtag = repoResponse.headers.get("ETag") || undefined;
   console.log(
-    `[GitHub] Repo fetch OK: ${fullName}, rate_limit_remaining=${repoResponse.headers.get("X-RateLimit-Remaining")}`,
+    `[GitHub] Repo fetch OK: ${fullName}, rate_limit_remaining=${
+      repoResponse.headers.get("X-RateLimit-Remaining")
+    }`,
   );
 
-  // Cache the new data with ETag (TTL from config for stable repo metadata)
-  await setCachedData(
-    cacheClient,
-    repoCacheKey,
-    repoData,
-    repoEtag,
-    config.cache.ttl.repository,
-  );
+  // --- Repo cache disabled for testing ---
+  // const repoEtag = repoResponse.headers.get("ETag") || undefined;
+  // await setCachedData(
+  //   cacheClient,
+  //   repoCacheKey,
+  //   repoData,
+  //   repoEtag,
+  //   config.cache.ttl.repository,
+  // );
 
   return repoData;
 }
