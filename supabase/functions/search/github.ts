@@ -85,14 +85,14 @@ export async function fetchCodeSearch(
     }`,
   );
 
-  // Cache the new data with ETag (TTL from config for volatile search results)
-  await setCachedData(
+  // Fire-and-forget: don't block the response on cache write
+  setCachedData(
     cacheClient,
     cacheKey,
     searchData,
     newEtag,
     config.cache.ttl.codeSearch,
-  );
+  ).catch(() => {/* already logged inside setCachedData */});
 
   return searchData;
 }
