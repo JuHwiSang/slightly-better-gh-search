@@ -158,6 +158,15 @@ export class SearchIterator implements AsyncIterator<SearchResultItem> {
 
         // We have items in the buffer, and currentIndex is pointing to a valid item
         const rawItem = this.currentItems[this.currentIndex];
+
+        if (!rawItem) {
+            console.error(
+                `[Search Iterator] CRITICAL: rawItem is undefined! index: ${this.currentIndex}, bufferLength: ${this.currentItems.length}, page: ${this.currentPage}`,
+            );
+            this.hasMore = false;
+            return { done: true, value: undefined };
+        }
+
         const repoInfo = this.currentRepoMap.get(rawItem.repository.full_name);
 
         this.currentIndex++; // Advance internal pointer
