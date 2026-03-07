@@ -8,6 +8,7 @@
 	import type { SearchResponse, SearchResultItem } from '$lib/types/search';
 	import type { PageData } from './$types';
 	import { edgeFunctionRegion } from '$lib/config/region';
+	import IconLucideArrowUp from '~icons/lucide/arrow-up';
 
 	// SSR data from +page.server.ts
 	const { data }: { data: PageData } = $props();
@@ -20,6 +21,9 @@
 	let error = $state<string | null>(null);
 	let incompleteResults = $state(false);
 	let hasMore = $derived(nextCursor !== null);
+	
+	let scrollY = $state(0);
+	let showScrollToTop = $derived(scrollY > 300);
 
 	// Re-initialize when SSR data changes (e.g. new search via navigation)
 	$effect(() => {
@@ -93,7 +97,23 @@
 			loadResults(nextCursor);
 		}
 	}
+
+	function scrollToTop() {
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
 </script>
+
+<svelte:window bind:scrollY />
+
+{#if showScrollToTop}
+	<button
+		onclick={scrollToTop}
+		class="fixed bottom-8 right-8 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-terminal-border bg-zinc-900/80 text-text-muted shadow-lg backdrop-blur-md transition-all hover:-translate-y-1 hover:bg-zinc-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-accent-blue"
+		aria-label="Scroll to top"
+	>
+		<IconLucideArrowUp class="h-6 w-6" />
+	</button>
+{/if}
 
 <div class="flex min-h-screen flex-col">
 	<Header />
