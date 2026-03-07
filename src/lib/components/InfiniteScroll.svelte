@@ -15,7 +15,7 @@
 
 	// Setup Intersection Observer
 	$effect(() => {
-		if (!sentinel || !hasMore || isLoading) {
+		if (!sentinel || !hasMore || isLoading || error) {
 			return;
 		}
 
