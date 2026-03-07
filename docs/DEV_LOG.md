@@ -6,6 +6,32 @@
 
 ## 2026-03-07
 
+### Code Search API 순수 TTL 캐싱 전환
+
+#### Overview
+
+- **현상**: GitHub Code Search API가 ETag와 `If-None-Match`를 무시하고 항상 200
+  OK를 반환. 이로 인해 옵티미스틱 캐시 페치가 실질적으로 rate limit을 지속적으로
+  소모.
+- **해결**: Code Search 과정에서 ETag/304 처리를 완전히 제거하고, 캐시 기간
+  동안은 순수한 TTL 기반 인메모리/DB 캐시에만 의존하게 코드 단순화.
+- **관련 ADR 업데이트**:
+  [ADR-009](file:///f:/usr/project/slightly-better-gh-search/docs/adr/ADR-009-tiered-cache-optimistic-fetch.md)
+
+#### Implementation Details
+
+- `github.ts`: `fetchCodeSearchFresh`에서 `etag` 파라미터 및 `If-None-Match`
+  헤더 설정 제거. 반환타입 `FreshSearchResult` 삭제.
+- `cursor.ts`: 캐시된 응답이 남아 있을 경우 API를 병렬로 무조건
+  요청(`fetchPageWithParallelOptimism`)하던 것을 없애고, 캐시 적중 시 바로
+  반환(`fetchPageWithCache`)하는 로직으로 변경.
+- 테스트(`cursor.unit_test.ts`, `index.e2e_test.ts` 등): ETag 관련 로직 및
+  expectation이 쓰이지 않게 제거함.
+- 문서(`code-search-api.md`): ETag가 Code Search API에서 지원되지 않음을 경고
+  박스로 추가함.
+
+---
+
 ### Edge Function 리전 지정 기능
 
 #### Overview

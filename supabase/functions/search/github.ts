@@ -6,14 +6,6 @@ import { config } from "./config.ts";
 const GITHUB_API_BASE = "https://api.github.com";
 
 /**
- * Result from fetchCodeSearchFresh — indicates whether cached data is still valid.
- */
-export interface FreshSearchResult {
-  data: GitHubCodeSearchResponse | null;
-  notModified: boolean;
-}
-
-/**
  * GitHub API client with integrated caching.
  *
  * Encapsulates all GitHub API interactions (code search + repository fetch)
@@ -41,27 +33,16 @@ export class GitHubClient {
     return this.cache.get<GitHubCodeSearchResponse>(cacheKey);
   }
 
-  /**
-   * Phase 2: Fetch from GitHub API with optional conditional request (If-None-Match).
-   *
-   * - If etag provided and GitHub returns 304: { data: null, notModified: true }
-   * - If new data: { data, notModified: false } + fire-and-forget cache write
-   */
   async fetchCodeSearchFresh(
     query: string,
     page: number,
     perPage: number,
-    etag?: string,
-  ): Promise<FreshSearchResult> {
+  ): Promise<GitHubCodeSearchResponse> {
     const searchHeaders: HeadersInit = {
       Authorization: `Bearer ${this.token}`,
       Accept: "application/vnd.github.text-match+json",
       "X-GitHub-Api-Version": "2022-11-28",
     };
-
-    if (etag) {
-      searchHeaders["If-None-Match"] = etag;
-    }
 
     const searchUrl = new URL(`${GITHUB_API_BASE}/search/code`);
     searchUrl.searchParams.set("q", query);
@@ -73,14 +54,6 @@ export class GitHubClient {
       headers: searchHeaders,
     });
     const latency = (performance.now() - startTime).toFixed(2);
-
-    // Handle 304 Not Modified
-    if (searchResponse.status === 304) {
-      console.log(
-        `[GitHub] Code search 304 Not Modified (${latency}ms, query="${query}", page=${page})`,
-      );
-      return { data: null, notModified: true };
-    }
 
     // Handle errors
     if (!searchResponse.ok) {
@@ -121,7 +94,6 @@ export class GitHubClient {
 
     // Parse new data
     const searchData: GitHubCodeSearchResponse = await searchResponse.json();
-    const newEtag = searchResponse.headers.get("ETag") || undefined;
     console.log(
       `[GitHub] Code search OK (${latency}ms, query="${query}", page=${page}): ${searchData.total_count} total, ${searchData.items.length} items, rate_limit_remaining=${
         searchResponse.headers.get("X-RateLimit-Remaining")
@@ -133,11 +105,11 @@ export class GitHubClient {
     this.cache.set(
       cacheKey,
       searchData,
-      newEtag,
+      undefined,
       config.cache.ttl.codeSearch,
     ).catch(() => {/* already logged inside CacheService */});
 
-    return { data: searchData, notModified: false };
+    return searchData;
   }
 
   // ============================================================

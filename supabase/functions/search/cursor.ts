@@ -138,7 +138,7 @@ export class SearchIterator implements AsyncIterator<SearchResultItem> {
             }
 
             const { searchData, repoMap } = await this
-                .fetchPageWithParallelOptimism(
+                .fetchPageWithCache(
                     this.query,
                     this.currentPage,
                     this.currentIndex,
@@ -203,7 +203,7 @@ export class SearchIterator implements AsyncIterator<SearchResultItem> {
     // Lifted directly from Orchestrator
     // ============================================================
 
-    private async fetchPageWithParallelOptimism(
+    private async fetchPageWithCache(
         query: string,
         page: number,
         startIndex: number,
@@ -220,59 +220,22 @@ export class SearchIterator implements AsyncIterator<SearchResultItem> {
                 ),
             ];
 
-            const [freshResult, prefetchedRepoMap] = await Promise.all([
-                this.github.fetchCodeSearchFresh(
-                    query,
-                    page,
-                    config.github.resultsPerPage,
-                    cached.etag,
-                ),
-                this.github.fetchRepositories(cachedRepos),
-            ]);
-
-            if (freshResult.notModified) {
-                const latency = (performance.now() - startTime).toFixed(2);
-                console.log(
-                    `[Search] Iterator Page ${page} optimistic fetch (hit) took ${latency}ms`,
-                );
-                return { searchData: cached.data, repoMap: prefetchedRepoMap };
-            }
-
-            const searchData = freshResult.data!;
-            const newRepos = [
-                ...new Set(
-                    searchData.items.slice(startIndex).map((item) =>
-                        item.repository.full_name
-                    ),
-                ),
-            ];
-            const missingRepos = newRepos.filter((r) =>
-                !prefetchedRepoMap.has(r)
+            const prefetchedRepoMap = await this.github.fetchRepositories(
+                cachedRepos,
             );
-
-            let repoMap: Map<string, RepositoryInfo>;
-            if (missingRepos.length > 0) {
-                const additionalRepos = await this.github.fetchRepositories(
-                    missingRepos,
-                );
-                repoMap = new Map([...prefetchedRepoMap, ...additionalRepos]);
-            } else {
-                repoMap = prefetchedRepoMap;
-            }
 
             const latency = (performance.now() - startTime).toFixed(2);
             console.log(
-                `[Search] Iterator Page ${page} optimistic fetch (new data) took ${latency}ms`,
+                `[Search] Iterator Page ${page} cache hit took ${latency}ms`,
             );
-            return { searchData, repoMap };
+            return { searchData: cached.data, repoMap: prefetchedRepoMap };
         } else {
             const startTime = performance.now();
-            const freshResult = await this.github.fetchCodeSearchFresh(
+            const searchData = await this.github.fetchCodeSearchFresh(
                 query,
                 page,
                 config.github.resultsPerPage,
             );
-            const searchData = freshResult.data!;
 
             const uniqueRepos = [
                 ...new Set(

@@ -18,6 +18,12 @@ match metadata for file content and file path fields.
 - **Pagination**: Like Google search, you can browse multiple pages to find the
   best match
 
+> [!WARNING]
+> ETag and conditional requests (`If-None-Match`) are **not supported** by the
+> Code Search API. The API ignores these headers and always returns a full 200
+> OK response, consuming your rate limit. You must rely on TTL-based caching
+> instead of HTTP conditional requests. instead of HTTP conditional requests.
+
 ### Custom Rate Limits for Search
 
 > [!IMPORTANT]
@@ -337,9 +343,9 @@ When you provide the `text-match` media type, you'll receive an extra key called
 
 #### Match Object Fields
 
-| Field     | Description                                                                |
-| --------- | -------------------------------------------------------------------------- |
-| `text`    | The matching search term                                                   |
+| Field     | Description                                                                                                                |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `text`    | The matching search term                                                                                                   |
 | `indices` | Array of two integers `[start, end]` indicating the position in `fragment` (**UTF-8 byte offsets**, not character offsets) |
 
 ### Example Request
@@ -407,13 +413,13 @@ curl -H 'Accept: application/vnd.github.text-match+json' \
 > property content.
 
 > [!WARNING]
-> The `indices` values are **UTF-8 byte offsets**, not character offsets.
-> For ASCII-only text these are identical, but for multi-byte characters
-> (e.g., CJK, emoji, accented characters) they will differ.
-> For example, the Korean string "테스트" is 3 characters but 9 UTF-8 bytes,
-> so its indices span 9 rather than 3.
-> When consuming these values in JavaScript (which uses UTF-16 string indexing),
-> you must convert byte offsets to character offsets before using `String.prototype.slice()`.
+> The `indices` values are **UTF-8 byte offsets**, not character offsets. For
+> ASCII-only text these are identical, but for multi-byte characters (e.g., CJK,
+> emoji, accented characters) they will differ. For example, the Korean string
+> "테스트" is 3 characters but 9 UTF-8 bytes, so its indices span 9 rather
+> than 3. When consuming these values in JavaScript (which uses UTF-16 string
+> indexing), you must convert byte offsets to character offsets before using
+> `String.prototype.slice()`.
 
 ## Best Practices
 
