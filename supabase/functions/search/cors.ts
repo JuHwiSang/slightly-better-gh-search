@@ -16,7 +16,7 @@ export function buildCorsHeaders(req: Request): HeadersInit {
   return {
     "Access-Control-Allow-Origin": isAllowed ? origin : "null",
     "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
+      "authorization, x-client-info, apikey, content-type, x-region",
     "Access-Control-Allow-Credentials": "true",
   };
 }
