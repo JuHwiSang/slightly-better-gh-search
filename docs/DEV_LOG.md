@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-03-07
+
+### Edge Function 리전 지정 기능
+
+#### Overview
+
+- **변경사항**: `functions.invoke()` 호출에 `region` 옵션 추가, 환경변수로 설정
+  가능
+- **목적**: DB를 `ap-northeast-2`(서울)로 이전 시 Edge Function과 DB 간 네트워크
+  레이턴시 최소화
+- **디폴트**: `ap-northeast-2` (환경변수 미설정 시 자동 적용)
+
+#### Implementation Details
+
+- `src/lib/config/region.ts` [NEW] — `$env/dynamic/public`에서
+  `PUBLIC_SUPABASE_FUNCTIONS_REGION` 읽기, `FunctionRegion` enum 매핑, 미설정 시
+  `ApNortheast2` 디폴트
+- 3곳의 `functions.invoke()` 호출에 `region: edgeFunctionRegion` 추가:
+  - `src/routes/search/+page.server.ts` (SSR)
+  - `src/routes/search/+page.svelte` (CSR infinite scroll)
+  - `src/routes/profile/+page.svelte` (delete-account)
+- `.env.example` — `PUBLIC_SUPABASE_FUNCTIONS_REGION` 추가 (주석, optional)
+
+---
+
 ## 2026-03-06
 
 ### 계층 캐시 + 옵티미스틱 병렬 페치 아키텍처 (ADR-009)

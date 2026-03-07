@@ -9,6 +9,7 @@
 	import ProfileCard from '$lib/components/ProfileCard.svelte';
 
 	import { authState } from '$lib/stores/auth.svelte';
+	import { edgeFunctionRegion } from '$lib/config/region';
 
 	let deleteDialog: HTMLDialogElement | undefined;
 	let isDeleting = $state(false);
@@ -35,7 +36,8 @@
 
 		try {
 			const { error } = await supabase.functions.invoke('delete-account', {
-				method: 'POST'
+				method: 'POST',
+				region: edgeFunctionRegion,
 			});
 
 			if (error) {

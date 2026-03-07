@@ -231,10 +231,12 @@ if (!query) {
 ```typescript
 // ✅ Use supabase.functions.invoke() — SDK auto-injects auth header
 import { FunctionsHttpError } from "@supabase/supabase-js";
+import { edgeFunctionRegion } from "$lib/config/region";
 
 // POST (clean — body natively supported)
 const { data, error } = await supabase.functions.invoke("search", {
   body: { query, filter, limit },
+  region: edgeFunctionRegion, // ✅ Always pass region
 });
 
 // ✅ FunctionsHttpError로 에러 핸들링
@@ -247,6 +249,23 @@ if (error instanceof FunctionsHttpError) {
 await fetch(`${PUBLIC_SUPABASE_URL}/functions/v1/search`, {
   headers: { Authorization: `Bearer ${token}` },
 });
+```
+
+### Edge Function Region Configuration
+
+```typescript
+// ✅ 리전 설정: $env/dynamic/public (optional, 미설정 시 디폴트 적용)
+import { env } from "$env/dynamic/public";
+import { FunctionRegion } from "@supabase/supabase-js";
+
+// PUBLIC_SUPABASE_FUNCTIONS_REGION 환경변수 → FunctionRegion enum 매핑
+// 미설정 시 ap-northeast-2 (서울) 디폴트
+export const edgeFunctionRegion: FunctionRegion =
+  REGION_MAP[env.PUBLIC_SUPABASE_FUNCTIONS_REGION ?? ""] ??
+    FunctionRegion.ApNortheast2;
+
+// ❌ $env/static/public 사용 금지 (환경변수 미설정 시 빌드 에러)
+import { PUBLIC_SUPABASE_FUNCTIONS_REGION } from "$env/static/public"; // ❌
 ```
 
 ### GitHub OAuth Token Storage
@@ -276,8 +295,8 @@ const token2 = user.user_metadata?.provider_token; // ❌ undefined
 
 ### Supabase Vault Access
 
-Supabase Cloud에서는 vault 스키마를 API에 직접 노출할 수 없으므로,
-public 스키마의 RPC 래핑 함수를 통해 접근한다.
+Supabase Cloud에서는 vault 스키마를 API에 직접 노출할 수 없으므로, public
+스키마의 RPC 래핑 함수를 통해 접근한다.
 
 ```typescript
 // ✅ 읽기: get_secret_by_name RPC (service_role only)
@@ -687,6 +706,6 @@ significant changes.
 
 ---
 
-_Last Updated: 2026-02-18_\
+_Last Updated: 2026-03-07_\
 _This file is optimized for AI consumption. Keep it concise and
 pattern-focused._

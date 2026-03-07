@@ -2,6 +2,7 @@ import { redirect } from "@sveltejs/kit";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import type { PageServerLoad } from "./$types";
 import type { SearchResponse } from "$lib/types/search";
+import { edgeFunctionRegion } from "$lib/config/region";
 
 export const load: PageServerLoad = async ({ url, locals }) => {
     const query = url.searchParams.get("query") || "";
@@ -25,6 +26,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
             ...(filter && { filter }),
             limit: 10,
         },
+        region: edgeFunctionRegion,
     }).then(async ({ data, error }) => {
         if (error) {
             let errorMessage = "Search failed";

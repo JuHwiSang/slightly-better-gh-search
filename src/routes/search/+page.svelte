@@ -7,6 +7,7 @@
 	import { FunctionsHttpError } from '@supabase/supabase-js';
 	import type { SearchResponse, SearchResultItem } from '$lib/types/search';
 	import type { PageData } from './$types';
+	import { edgeFunctionRegion } from '$lib/config/region';
 
 	// SSR data from +page.server.ts
 	const { data }: { data: PageData } = $props();
@@ -60,6 +61,7 @@
 						cursor,
 						limit: 10,
 					},
+					region: edgeFunctionRegion,
 				}
 			);
 
