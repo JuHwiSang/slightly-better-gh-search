@@ -18,6 +18,8 @@ import { ApiError } from "./errors.ts";
  * Possible API errors:
  * - 400: Missing/empty query, invalid cursor, invalid limit, filter error
  * - 401: Missing auth header, GitHub token not found
+ * - 429: GitHub API rate limit exceeded
+ * - 502: GitHub API upstream error
  * - 500: Unexpected internal errors
  */
 Deno.serve(async (req) => {

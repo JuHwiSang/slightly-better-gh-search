@@ -1,5 +1,6 @@
 import type { GitHubCodeSearchResponse, RepositoryInfo } from "./types.ts";
 import { type CachedData, CacheService, generateCacheKey } from "./cache.ts";
+import { ApiError } from "./errors.ts";
 import { config } from "./config.ts";
 
 const GITHUB_API_BASE = "https://api.github.com";
@@ -84,6 +85,27 @@ export class GitHubClient {
     // Handle errors
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text();
+
+      // Rate limit exceeded (primary or secondary/abuse)
+      if (
+        searchResponse.status === 403 &&
+        errorText.toLowerCase().includes("rate limit")
+      ) {
+        const resetAt = searchResponse.headers.get("X-RateLimit-Reset");
+        console.warn(
+          `[GitHub] Rate limit exceeded (${latency}ms, query="${query}", page=${page})`,
+          resetAt
+            ? `\n  Resets at: ${new Date(Number(resetAt) * 1000).toISOString()}`
+            : "",
+          "\n  Body:",
+          errorText,
+        );
+        throw new ApiError(
+          429,
+          "GitHub API rate limit exceeded. Please try again later.",
+        );
+      }
+
       console.error(
         `[GitHub] Code search API error (${latency}ms, query="${query}", page=${page}):`,
         searchResponse.status,
@@ -91,7 +113,8 @@ export class GitHubClient {
         "\n  Body:",
         errorText,
       );
-      throw new Error(
+      throw new ApiError(
+        502,
         `GitHub API error: ${searchResponse.status} ${searchResponse.statusText}`,
       );
     }
@@ -153,6 +176,27 @@ export class GitHubClient {
 
     if (!repoResponse.ok) {
       const errorText = await repoResponse.text();
+
+      // Rate limit exceeded — bubble up immediately
+      if (
+        repoResponse.status === 403 &&
+        errorText.toLowerCase().includes("rate limit")
+      ) {
+        const resetAt = repoResponse.headers.get("X-RateLimit-Reset");
+        console.warn(
+          `[GitHub] Rate limit exceeded for repo ${fullName} (${latency}ms)`,
+          resetAt
+            ? `\n  Resets at: ${new Date(Number(resetAt) * 1000).toISOString()}`
+            : "",
+          "\n  Body:",
+          errorText,
+        );
+        throw new ApiError(
+          429,
+          "GitHub API rate limit exceeded. Please try again later.",
+        );
+      }
+
       console.warn(
         `[GitHub] Repo fetch failed for ${fullName} (${latency}ms):`,
         repoResponse.status,
