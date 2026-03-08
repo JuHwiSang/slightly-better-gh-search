@@ -2,7 +2,11 @@
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { authState } from '$lib/stores/auth.svelte';
+	import { injectAnalytics } from '@vercel/analytics/sveltekit';
+  	import { dev } from '$app/environment';
 	import { onMount } from 'svelte';
+
+	injectAnalytics({ mode: dev ? 'development' : 'production' });
 
 	let { children } = $props();
 
