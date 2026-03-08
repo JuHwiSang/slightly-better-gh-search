@@ -1,5 +1,9 @@
 <script lang="ts">
+	import { slide } from 'svelte/transition';
 	import IconLucideFileCode from '~icons/lucide/file-code';
+	import IconLucideInfo from '~icons/lucide/info';
+	import IconLucideGitFork from '~icons/lucide/git-fork';
+	import IconLucideCircleDot from '~icons/lucide/circle-dot';
 	import type { SearchResultItem } from '$lib/types/search';
 
 	interface Props {
@@ -8,11 +12,14 @@
 
 	let { result }: Props = $props();
 
+	let isRepoInfoOpen = $state(false);
+
 	// Compute display values from repository info
 	const language = $derived(result.repository.language || 'Unknown');
 	const stars = $derived(result.repository.stargazers_count || 0);
 	const languageColor = $derived(getLanguageColor(language));
 	const updatedAt = $derived(formatDate(result.repository.updated_at));
+	const topicsString = $derived(result.repository.topics?.length ? `[${result.repository.topics.map(t => `"${t}"`).join(', ')}]` : '[]');
 
 	/**
 	 * Get color for programming language
@@ -233,13 +240,73 @@
 	</div>
 
 	<!-- Metadata -->
-	<div class="mt-1 flex items-center gap-4 font-mono text-xs text-text-muted">
-		<div class="flex items-center gap-1.5">
-			<span class="size-2 rounded-full" style="background-color: {languageColor}"></span>
-			<span>{language}</span>
+	<div class="mt-1 flex items-center justify-between font-mono text-xs text-text-muted">
+		<div class="flex items-center gap-4">
+			<div class="flex items-center gap-1.5">
+				<span class="size-2 rounded-full" style="background-color: {languageColor}"></span>
+				<span>{language}</span>
+			</div>
+			<span>{stars.toLocaleString()} stars</span>
+			<span>{updatedAt}</span>
 		</div>
-		<span>{stars.toLocaleString()} stars</span>
-		<span>{updatedAt}</span>
+		<button
+			class="flex items-center gap-1 outline-none transition-colors hover:text-accent-blue focus-visible:text-accent-blue {isRepoInfoOpen ? 'text-accent-blue' : ''}"
+			onclick={() => (isRepoInfoOpen = !isRepoInfoOpen)}
+			aria-expanded={isRepoInfoOpen}
+			aria-label="Toggle repository data for filtering"
+		>
+			<IconLucideInfo class="size-3.5" />
+			<span>Repo Data</span>
+		</button>
 	</div>
+
+	<!-- Expanded Repo Data (Filter Helper) -->
+	{#if isRepoInfoOpen}
+		<div
+			transition:slide={{ duration: 200 }}
+			class="mt-2 text-[11px] sm:text-xs rounded-md border border-terminal-border bg-code-bg/60 p-3 shadow-sm font-mono overflow-x-auto"
+		>
+			<div class="mb-3 text-text-muted flex items-center justify-between border-b border-terminal-border/50 pb-2">
+				<span class="font-semibold text-text-body">Available Filter Properties</span>
+			</div>
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1.5">
+				<!-- Numbers -->
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">stars</span><span class="text-yellow-200/90 break-all">: {result.repository.stargazers_count}</span></div>
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">watchers</span><span class="text-yellow-200/90 break-all">: {result.repository.watchers_count}</span></div>
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">forks</span><span class="text-yellow-200/90 break-all">: {result.repository.forks_count}</span></div>
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">issues</span><span class="text-yellow-200/90 break-all">: {result.repository.open_issues_count}</span></div>
+				
+				<!-- Booleans -->
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">is_fork</span><span class="text-purple-400/90 break-all">: {result.repository.fork}</span></div>
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">is_private</span><span class="text-purple-400/90 break-all">: {result.repository.private}</span></div>
+				
+				<!-- Strings -->
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">language</span><span class="text-green-400/90 break-all">: "{result.repository.language || ''}"</span></div>
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">name</span><span class="text-green-400/90 break-all">: "{result.repository.name}"</span></div>
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">owner</span><span class="text-green-400/90 break-all">: "{result.repository.owner.login}"</span></div>
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">owner_type</span><span class="text-green-400/90 break-all">: "{result.repository.owner.type}"</span></div>
+				<div class="flex items-start gap-2"><span class="text-accent-blue/90 w-24 shrink-0">visibility</span><span class="text-green-400/90 break-all">: "{result.repository.visibility}"</span></div>
+
+				<!-- Arrays & Long Strings -->
+				<div class="flex items-start gap-2 sm:col-span-2 lg:col-span-3">
+					<span class="text-accent-blue/90 w-24 shrink-0">full_name</span>
+					<span class="text-green-400/90 break-all">: "{result.repository.full_name}"</span>
+				</div>
+				<div class="flex items-start gap-2 sm:col-span-2 lg:col-span-3">
+					<span class="text-accent-blue/90 w-24 shrink-0">default_branch</span>
+					<span class="text-green-400/90 break-all">: "{result.repository.default_branch}"</span>
+				</div>
+				<div class="flex items-start gap-2 sm:col-span-2 lg:col-span-3">
+					<span class="text-accent-blue/90 w-24 shrink-0">topics</span>
+					<span class="text-slate-300 break-all">: {topicsString}</span>
+				</div>
+                
+				<div class="flex items-start gap-2 sm:col-span-2 lg:col-span-3">
+					<span class="text-accent-blue/90 w-24 shrink-0">description</span>
+					<span class="text-green-400/90 break-all">: "{result.repository.description || ''}"</span>
+				</div>
+			</div>
+		</div>
+	{/if}
 </article>
 

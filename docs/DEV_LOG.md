@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-03-08
+
+### 레포지토리 원시 데이터(필터 속성) 패널 추가
+
+#### Overview
+
+- **변경사항**: 검색 결과 카드(`SearchResultCard.svelte`) 하단에 커스텀
+  필터링(`filtrex`) 작성에 참고할 수 있도록 모든 `Result.repository` 가용 속성을
+  표출하는 토글 패널 추가
+- **목적**: 사용자가 `filter` 입력칸에 어떤 속성을 대상으로 쿼리를 작성할 수
+  있는지 카드에서 바로 확인 가능한 도움말(Filter Helper) 역할 제공
+
+#### Implementation Details
+
+- `isRepoInfoOpen` $state 및 `svelte/transition` `slide` 트랜지션 활용
+- `RepositoryInfo`의 주요 속성(`stars`, `issues`, `is_fork`, `language`,
+  `topics` 등)을 필터 변수명과 1:1 매칭하여 표기
+- 가독성을 위한 터미널 스타일에 맞는 JSON/Property list 스타일(`font-mono`,
+  `text-accent-blue`)의 UI 구성
+
+---
+
 ## 2026-03-07
 
 ### Code Search API 순수 TTL 캐싱 전환
