@@ -13,6 +13,9 @@ export class SearchRequest {
     readonly cursor: string | null;
     readonly limit: number;
 
+    static readonly MAX_QUERY_LENGTH = 256;
+    static readonly MAX_FILTER_LENGTH = 1024;
+
     constructor(body: Record<string, unknown>) {
         // Parse fields
         this.query = String(body.query || "");
@@ -22,6 +25,21 @@ export class SearchRequest {
             body.limit?.toString() || config.search.defaultLimit.toString(),
             10,
         );
+
+        // Validate lengths
+        if (this.query.length > SearchRequest.MAX_QUERY_LENGTH) {
+            throw new ApiError(
+                400,
+                `Query exceeds maximum length of ${SearchRequest.MAX_QUERY_LENGTH} characters.`,
+            );
+        }
+
+        if (this.filter.length > SearchRequest.MAX_FILTER_LENGTH) {
+            throw new ApiError(
+                400,
+                `Filter exceeds maximum length of ${SearchRequest.MAX_FILTER_LENGTH} characters.`,
+            );
+        }
 
         // Validate query
         if (!this.query || this.query.trim() === "") {

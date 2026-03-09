@@ -1,5 +1,28 @@
 import { assertEquals } from "@std/assert";
-import { generateCacheKey } from "./cache.ts";
+import { generateCacheKey, LimitedMap } from "./cache.ts";
+
+// ==================== LimitedMap ====================
+
+Deno.test("LimitedMap: respects max limit and evicts oldest items", () => {
+    const map = new LimitedMap<number, string>(3);
+
+    map.set(1, "a");
+    map.set(2, "b");
+    map.set(3, "c");
+    assertEquals(map.size, 3);
+    assertEquals(map.has(1), true);
+
+    // Adding 4th item should evict key 1 (oldest)
+    map.set(4, "d");
+    assertEquals(map.size, 3);
+    assertEquals(map.has(1), false);
+    assertEquals(map.has(2), true);
+    assertEquals(map.has(4), true);
+
+    // Updating existing item
+    map.set(2, "b-updated");
+    assertEquals(map.size, 3);
+});
 
 // ==================== generateCacheKey ====================
 

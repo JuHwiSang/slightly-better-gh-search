@@ -29,6 +29,26 @@ Deno.test("SearchRequest: limit as string parses to number", () => {
     assertEquals(req.limit, 15);
 });
 
+// ==================== Input lengths ====================
+
+Deno.test("SearchRequest: exceeding MAX_QUERY_LENGTH throws 400", () => {
+    const longQuery = "a".repeat(SearchRequest.MAX_QUERY_LENGTH + 1);
+    assertThrows(
+        () => new SearchRequest({ query: longQuery }),
+        Error,
+        `Query exceeds maximum length of ${SearchRequest.MAX_QUERY_LENGTH} characters.`,
+    );
+});
+
+Deno.test("SearchRequest: exceeding MAX_FILTER_LENGTH throws 400", () => {
+    const longFilter = "a".repeat(SearchRequest.MAX_FILTER_LENGTH + 1);
+    assertThrows(
+        () => new SearchRequest({ query: "test", filter: longFilter }),
+        Error,
+        `Filter exceeds maximum length of ${SearchRequest.MAX_FILTER_LENGTH} characters.`,
+    );
+});
+
 // ==================== Empty query ====================
 
 Deno.test("SearchRequest: empty query throws 400", () => {

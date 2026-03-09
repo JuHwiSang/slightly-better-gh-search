@@ -27,6 +27,27 @@ export function generateCacheKey(
 }
 
 /**
+ * A Map that limits its size to prevent memory exhaustion (DoS mitigation).
+ * When the limit is reached, it evicts the oldest entries (FIFO).
+ */
+export class LimitedMap<K, V> extends Map<K, V> {
+  constructor(private readonly maxSize: number) {
+    super();
+  }
+
+  override set(key: K, value: V): this {
+    super.set(key, value);
+    if (this.size > this.maxSize) {
+      const firstKey = this.keys().next().value;
+      if (firstKey !== undefined) {
+        this.delete(firstKey);
+      }
+    }
+    return this;
+  }
+}
+
+/**
  * Centralized caching service with tiered architecture:
  * - L1: In-memory cache (module-level, persists across requests in same worker)
  * - L2: Supabase DB cache (persists across workers)
@@ -35,11 +56,11 @@ export function generateCacheKey(
  * Cache failure never breaks the main request — all errors are swallowed.
  */
 export class CacheService {
-  /** L1: In-memory cache. No TTL or size limit — shares Edge Function lifecycle. */
-  private readonly memoryCache = new Map<
+  /** L1: In-memory cache. Limited to 10000 items (FIFO) to prevent memory exhaustion (OOM). */
+  private readonly memoryCache = new LimitedMap<
     string,
     { data: unknown; etag?: string }
-  >();
+  >(10000);
 
   /** Singleflight: prevents duplicate in-flight DB queries for the same key. */
   private readonly inflight = new Map<
