@@ -30,9 +30,13 @@ match metadata for file content and file path fields.
 > The Search API has different rate limits than other GitHub REST API endpoints.
 
 - **Authenticated requests**:
-  - **Code Search**: 10 requests per minute (requires authentication)
+  - **Code Search**: 10 requests per minute (default)
   - **Other search endpoints**: 30 requests per minute
 - **Unauthenticated requests**: 10 requests per minute (all search endpoints)
+
+> [!WARNING]
+> The default rate limit of 10 for the Search API is subject to change. GitHub
+> may adjust these thresholds in the future.
 
 For information about determining your current rate limit status, see the
 [Rate Limit documentation](https://docs.github.com/en/rest/rate-limit).

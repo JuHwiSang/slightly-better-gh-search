@@ -445,8 +445,11 @@ const filtered = Array.from(repositories.values()).filter((repo) =>
 
 ## Limitations
 
-- **Rate Limits**: Subject to GitHub API rate limits (5,000 requests/hour for
-  authenticated requests)
+- **Rate Limits**: Subject to GitHub API rate limits (default: 5,000
+  requests/hour for authenticated requests).
+  > [!WARNING]
+  > The default rate limit of 5,000 for the Repository API is subject to change.
+  > GitHub may adjust these thresholds in the future.
 - **Permission-Based Fields**: Some fields require specific permissions to view
 - **Public vs Private**: Authentication required for private repositories
 - **Fork Depth**: The API only provides direct `parent` and ultimate `source`,

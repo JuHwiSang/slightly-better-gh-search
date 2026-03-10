@@ -2,6 +2,7 @@ import type { GitHubCodeSearchResponse, RepositoryInfo } from "./types.ts";
 import { type CachedData, CacheService, generateCacheKey } from "./cache.ts";
 import { ApiError } from "./errors.ts";
 import { config } from "./config.ts";
+import { SupabaseClient } from "@supabase/supabase-js";
 
 const GITHUB_API_BASE = "https://api.github.com";
 
@@ -13,6 +14,7 @@ const GITHUB_API_BASE = "https://api.github.com";
  */
 export class GitHubClient {
   constructor(
+    private readonly supabaseClient: SupabaseClient,
     private readonly cache: CacheService,
     private readonly token: string,
   ) {}
@@ -100,6 +102,26 @@ export class GitHubClient {
       }`,
     );
 
+    // Fire-and-forget rate limit update
+    const usedRaw = searchResponse.headers.get("X-RateLimit-Used");
+    const remainingRaw = searchResponse.headers.get("X-RateLimit-Remaining");
+    const resetRaw = searchResponse.headers.get("X-RateLimit-Reset");
+
+    if (usedRaw && remainingRaw && resetRaw) {
+      this.supabaseClient.rpc("update_search_rate_limit", {
+        p_used: parseInt(usedRaw, 10),
+        p_remaining: parseInt(remainingRaw, 10),
+        p_reset: new Date(parseInt(resetRaw, 10) * 1000).toISOString(),
+      }).then(({ error }: { error: unknown }) => {
+        if (error) {
+          console.error(
+            "[GitHub] Failed to update search rate limit profile:",
+            error,
+          );
+        }
+      });
+    }
+
     // Fire-and-forget cache write
     const cacheKey = generateCacheKey("github:search", { query, page });
     this.cache.set(
@@ -185,6 +207,26 @@ export class GitHubClient {
         repoResponse.headers.get("X-RateLimit-Remaining")
       }`,
     );
+
+    // Fire-and-forget rate limit update
+    const usedRaw = repoResponse.headers.get("X-RateLimit-Used");
+    const remainingRaw = repoResponse.headers.get("X-RateLimit-Remaining");
+    const resetRaw = repoResponse.headers.get("X-RateLimit-Reset");
+
+    if (usedRaw && remainingRaw && resetRaw) {
+      this.supabaseClient.rpc("update_repo_rate_limit", {
+        p_used: parseInt(usedRaw, 10),
+        p_remaining: parseInt(remainingRaw, 10),
+        p_reset: new Date(parseInt(resetRaw, 10) * 1000).toISOString(),
+      }).then(({ error }: { error: unknown }) => {
+        if (error) {
+          console.error(
+            "[GitHub] Failed to update repo rate limit profile:",
+            error,
+          );
+        }
+      });
+    }
 
     return repoData;
   }

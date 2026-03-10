@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     // Wire dependencies and execute
     const cache = new CacheService(createAdminClient());
-    const github = new GitHubClient(cache, githubToken);
+    const github = new GitHubClient(supabaseClient, cache, githubToken);
     const orchestrator = new SearchOrchestrator(github);
     const result = await orchestrator.execute(request);
 
