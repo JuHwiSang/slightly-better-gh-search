@@ -7,9 +7,12 @@
 	import IconLucideArrowLeft from '~icons/lucide/arrow-left';
 	import IconLucideAlertTriangle from '~icons/lucide/alert-triangle';
 	import ProfileCard from '$lib/components/ProfileCard.svelte';
+	import RateLimitDisplay from '$lib/components/RateLimitDisplay.svelte';
 
 	import { authState } from '$lib/stores/auth.svelte';
 	import { edgeFunctionRegion } from '$lib/config/region';
+
+	let { data } = $props();
 
 	let deleteDialog: HTMLDialogElement | undefined;
 	let isDeleting = $state(false);
@@ -98,6 +101,28 @@
 			isGitHubConnected={authState.isAuthenticated}
 		/>
 
+		<!-- Streamed Rate Limits -->
+		{#await data.streamed.profile}
+			<section class="overflow-hidden rounded-xl border border-border-dark bg-card-dark shadow-sm p-6 md:p-8 flex justify-center items-center min-h-[200px]">
+				<div class="h-8 w-8 animate-spin rounded-full border-4 border-accent-blue border-t-transparent"></div>
+			</section>
+		{:then profileData}
+			{#if profileData}
+				<RateLimitDisplay 
+					variant="full"
+					searchUsed={profileData.search_limit_used}
+					searchRemaining={profileData.search_limit_remaining}
+					searchReset={profileData.search_limit_reset}
+					repoUsed={profileData.repo_limit_used}
+					repoRemaining={profileData.repo_limit_remaining}
+					repoReset={profileData.repo_limit_reset}
+				/>
+			{/if}
+		{:catch error}
+			<section class="rounded-xl border border-red-800 bg-red-900/20 p-6 text-center text-red-500">
+				Failed to load API usage data.
+			</section>
+		{/await}
 
 		<!-- Action Buttons -->
 		<section class="flex flex-col gap-4">

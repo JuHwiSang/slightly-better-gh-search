@@ -6,11 +6,47 @@
 	import IconLucideGithub from '~icons/lucide/github';
 	import IconLucideUser from '~icons/lucide/user';
 	import { authState } from '$lib/stores/auth.svelte';
+	import RateLimitDisplay from './RateLimitDisplay.svelte';
+	import { supabase } from '$lib/supabase';
 
 	let showDropdown = $state(false);
+	let isLoadingRateLimit = $state(false);
+	let rateLimit = $state<{
+		search_limit_used: number;
+		search_limit_remaining: number;
+		search_limit_reset: string | null;
+		repo_limit_used: number;
+		repo_limit_remaining: number;
+		repo_limit_reset: string | null;
+	} | null>(null);
+
+
+
+	async function loadRateLimit() {
+		if (!authState.user) return;
+		isLoadingRateLimit = true;
+		try {
+			const { data, error } = await supabase
+				.from('profiles')
+				.select('search_limit_used, search_limit_remaining, search_limit_reset, repo_limit_used, repo_limit_remaining, repo_limit_reset')
+				.eq('id', authState.user.id)
+				.single();
+			
+			if (!error && data) {
+				rateLimit = data;
+			}
+		} catch (err) {
+			console.error('Failed to load rate limit:', err);
+		} finally {
+			isLoadingRateLimit = false;
+		}
+	}
 
 	function toggleDropdown() {
 		showDropdown = !showDropdown;
+		if (showDropdown && authState.isAuthenticated && !isLoadingRateLimit) {
+			loadRateLimit();
+		}
 	}
 
 	function closeDropdown() {
@@ -99,6 +135,24 @@
 							</div>
 						</div>
 					</div>
+
+					{#if isLoadingRateLimit}
+						<div class="flex justify-center border-b border-terminal-border p-4">
+							<div class="h-4 w-4 animate-spin rounded-full border-2 border-accent-blue border-t-transparent"></div>
+						</div>
+					{:else if rateLimit}
+						<div class="border-b border-terminal-border bg-[#1a2230]">
+							<RateLimitDisplay 
+								variant="compact"
+								searchUsed={rateLimit.search_limit_used}
+								searchRemaining={rateLimit.search_limit_remaining}
+								searchReset={rateLimit.search_limit_reset}
+								repoUsed={rateLimit.repo_limit_used}
+								repoRemaining={rateLimit.repo_limit_remaining}
+								repoReset={rateLimit.repo_limit_reset}
+							/>
+						</div>
+					{/if}
 
 					<div class="p-2">
 						<a
