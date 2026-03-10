@@ -85,3 +85,8 @@ BEGIN
   WHERE id = auth.uid();
 END;
 $$;
+
+-- Backfill profiles for existing users
+INSERT INTO public.profiles (id)
+SELECT id FROM auth.users
+ON CONFLICT (id) DO NOTHING;
