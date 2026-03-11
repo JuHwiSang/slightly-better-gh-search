@@ -8,6 +8,7 @@
 	import { authState } from '$lib/stores/auth.svelte';
 	import RateLimitDisplay from './RateLimitDisplay.svelte';
 	import { supabase } from '$lib/supabase';
+	import { goto } from '$app/navigation';
 
 	let showDropdown = $state(false);
 	let isLoadingRateLimit = $state(false);
@@ -56,6 +57,7 @@
 	async function handleLogout() {
 		await authState.signOut();
 		closeDropdown();
+		goto('/');
 	}
 
 	async function handleGitHubLogin() {
