@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-03-11
+
+### 매뉴얼 설정 및 배포 가이드 문서 작성
+
+#### Overview
+
+- **변경사항**: `docs/manual-setup.md` 작성 및 `README.md`에 링크 추가
+- **목적**: Supabase (OAuth, Auth URL Configuration) 및 Vercel 프로젝트 생성 등
+  초기 수동 환경 설정에 대한 가이드 제공
+
+---
+
 ## 2026-03-08
 
 ### 레포지토리 원시 데이터(필터 속성) 패널 추가

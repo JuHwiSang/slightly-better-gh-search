@@ -118,7 +118,9 @@ layer. _(Frontend SvelteKit tests are not currently implemented)._
 
 ## ☁️ Deployment
 
-Deployments are fully automated via **GitHub Actions**.
+Deployments are fully automated via **GitHub Actions**. For initial setup
+instructions (Supabase, Vercel), please see the
+[Manual Setup Guide](./docs/manual-setup.md).
 
 - **Frontend**: Pushes to `main` seamlessly trigger a Vercel deployment.
 - **Backend**: Changes inside the `supabase/` directory trigger a Supabase CLI
@@ -140,6 +142,8 @@ configured in your Vercel project settings._
 
 ## 📚 Documentation
 
+- **Manual Setup & Deployment Guide**:
+  [`docs/manual-setup.md`](./docs/manual-setup.md)
 - **Architecture Decisions**: [`docs/adr/`](./docs/adr/)
 - **Troubleshooting**: [`docs/troubleshooting/`](./docs/troubleshooting/)
 - **Development Patterns**: Refer to `GEMINI.md` for AI context/patterns and
