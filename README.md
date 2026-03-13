@@ -2,6 +2,8 @@
 
 > Enhanced GitHub Code Search with advanced lightweight filtering capabilities.
 
+🔗 **Live Site**: <https://slightly-better-gh-search.vercel.app/>
+
 ## 🚀 Features
 
 - **Dual Input System**: Combine standard GitHub search queries with custom
