@@ -21,20 +21,6 @@ updates:
           - "minor"
           - "patch"
 
-  # Supabase Edge Functions (Deno)
-  - package-ecosystem: "deno"
-    directory: "/supabase/functions"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    cooldown:
-      default-days: 3
-    groups:
-      supabase-dependencies:
-        update-types:
-          - "minor"
-          - "patch"
-
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
