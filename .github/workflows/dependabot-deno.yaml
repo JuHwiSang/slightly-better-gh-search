@@ -1,0 +1,41 @@
+name: Update Deno Dependencies
+
+on:
+  schedule:
+    - cron: "0 0 * * 1" # 매주 월요일 00:00 (KST 오전 9시) 실행
+  workflow_dispatch: # 필요할 때 버튼 눌러서 수동 실행 가능
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Run udd
+        run: |
+          # udd 설치
+          deno install -A -f -n udd https://deno.land/x/udd/main.ts
+
+          # 딱 /supabase/functions/deno.json 파일 하나만 업데이트!
+          # minor, patch만 올리고 싶다면 보통 udd가 알아서 최신을 잡지만
+          # Deno 생태계는 보통 최신 유지가 국룰입니다.
+          udd supabase/functions/deno.json
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update supabase functions dependencies"
+          title: "📦 [Deno] Supabase Functions 의존성 업데이트"
+          body: |
+            ## 🤖 자동 의존성 업데이트
+            `supabase/functions/deno.json`의 의존성들을 일괄 업데이트했습니다.
+            - 주기: 매주 월요일
+            - 대상: deno.json
+          branch: "dependabot-deno-updates" # 브랜치 이름
+          delete-branch: true
