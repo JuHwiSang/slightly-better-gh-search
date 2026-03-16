@@ -17,7 +17,7 @@
 		"test:supabase:watch": "deno test --allow-net --allow-env --env-file=supabase/.env.test --config=supabase/functions/deno.json --watch supabase/functions/**/*_test.ts"
 	},
 	"devDependencies": {
-		"@eslint/compat": "^1.4.1",
+		"@eslint/compat": "^2.0.3",
 		"@eslint/js": "^9.39.2",
 		"@iconify/json": "^2.2.426",
 		"@sveltejs/adapter-auto": "^7.0.0",
