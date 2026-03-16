@@ -24,7 +24,7 @@
 		"@sveltejs/kit": "^2.49.4",
 		"@sveltejs/vite-plugin-svelte": "^6.2.3",
 		"@tailwindcss/vite": "^4.1.18",
-		"@types/node": "^20.19.27",
+		"@types/node": "^25.5.0",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.14.0",
