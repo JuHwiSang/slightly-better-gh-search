@@ -17,29 +17,29 @@
 		"test:supabase:watch": "deno test --allow-net --allow-env --env-file=supabase/.env.test --config=supabase/functions/deno.json --watch supabase/functions/**/*_test.ts"
 	},
 	"devDependencies": {
-		"@eslint/compat": "^1.4.1",
-		"@eslint/js": "^9.39.2",
-		"@iconify/json": "^2.2.426",
+		"@eslint/compat": "^2.0.3",
+		"@eslint/js": "^10.0.1",
+		"@iconify/json": "^2.2.453",
 		"@sveltejs/adapter-vercel": "^6.3.3",
-		"@sveltejs/kit": "^2.49.4",
-		"@sveltejs/vite-plugin-svelte": "^6.2.3",
-		"@tailwindcss/vite": "^4.1.18",
-		"@types/node": "^20.19.27",
-		"eslint": "^9.39.2",
+		"@sveltejs/kit": "^2.55.0",
+		"@sveltejs/vite-plugin-svelte": "^7.0.0",
+		"@tailwindcss/vite": "^4.2.2",
+		"@types/node": "^25.5.0",
+		"eslint": "^10.1.0",
 		"eslint-config-prettier": "^10.1.8",
-		"eslint-plugin-svelte": "^3.14.0",
-		"globals": "^16.5.0",
-		"prettier": "^3.7.4",
-		"prettier-plugin-svelte": "^3.4.1",
+		"eslint-plugin-svelte": "^3.16.0",
+		"globals": "^17.4.0",
+		"prettier": "^3.8.1",
+		"prettier-plugin-svelte": "^3.5.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
-		"supabase": "^2.76.6",
-		"svelte": "^5.46.1",
-		"svelte-check": "^4.3.5",
-		"tailwindcss": "^4.1.18",
+		"supabase": "^2.83.0",
+		"svelte": "^5.54.1",
+		"svelte-check": "^4.4.5",
+		"tailwindcss": "^4.2.2",
 		"typescript": "^5.9.3",
-		"typescript-eslint": "^8.52.0",
-		"unplugin-icons": "^22.5.0",
-		"vite": "^7.3.1"
+		"typescript-eslint": "^8.57.1",
+		"unplugin-icons": "^23.0.1",
+		"vite": "^8.0.1"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -51,8 +51,8 @@
 		}
 	},
 	"dependencies": {
-		"@supabase/ssr": "^0.8.0",
-		"@supabase/supabase-js": "^2.90.1",
-		"@vercel/analytics": "^1.6.1"
+		"@supabase/ssr": "^0.9.0",
+		"@supabase/supabase-js": "^2.99.3",
+		"@vercel/analytics": "^2.0.1"
 	}
 }
