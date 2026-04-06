@@ -19,7 +19,7 @@
 	"devDependencies": {
 		"@eslint/compat": "^2.0.3",
 		"@eslint/js": "^10.0.1",
-		"@iconify/json": "^2.2.453",
+		"@iconify/json": "^2.2.458",
 		"@sveltejs/adapter-vercel": "^6.3.3",
 		"@sveltejs/kit": "^2.55.0",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
@@ -27,19 +27,19 @@
 		"@types/node": "^25.5.0",
 		"eslint": "^10.1.0",
 		"eslint-config-prettier": "^10.1.8",
-		"eslint-plugin-svelte": "^3.16.0",
+		"eslint-plugin-svelte": "^3.17.0",
 		"globals": "^17.4.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.5.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
-		"supabase": "^2.83.0",
-		"svelte": "^5.54.1",
-		"svelte-check": "^4.4.5",
+		"supabase": "^2.84.8",
+		"svelte": "^5.55.1",
+		"svelte-check": "^4.4.6",
 		"tailwindcss": "^4.2.2",
-		"typescript": "^5.9.3",
-		"typescript-eslint": "^8.57.1",
+		"typescript": "^6.0.2",
+		"typescript-eslint": "^8.58.0",
 		"unplugin-icons": "^23.0.1",
-		"vite": "^8.0.1"
+		"vite": "^8.0.3"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -51,8 +51,8 @@
 		}
 	},
 	"dependencies": {
-		"@supabase/ssr": "^0.9.0",
-		"@supabase/supabase-js": "^2.99.3",
+		"@supabase/ssr": "^0.10.0",
+		"@supabase/supabase-js": "^2.101.1",
 		"@vercel/analytics": "^2.0.1"
 	}
 }
