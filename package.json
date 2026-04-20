@@ -17,29 +17,29 @@
 		"test:supabase:watch": "deno test --allow-net --allow-env --env-file=supabase/.env.test --config=supabase/functions/deno.json --watch supabase/functions/**/*_test.ts"
 	},
 	"devDependencies": {
-		"@eslint/compat": "^2.0.3",
+		"@eslint/compat": "^2.0.5",
 		"@eslint/js": "^10.0.1",
-		"@iconify/json": "^2.2.458",
+		"@iconify/json": "^2.2.463",
 		"@sveltejs/adapter-vercel": "^6.3.3",
-		"@sveltejs/kit": "^2.55.0",
+		"@sveltejs/kit": "^2.57.1",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/vite": "^4.2.2",
-		"@types/node": "^25.5.0",
-		"eslint": "^10.1.0",
+		"@types/node": "^25.6.0",
+		"eslint": "^10.2.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.17.0",
-		"globals": "^17.4.0",
-		"prettier": "^3.8.1",
+		"globals": "^17.5.0",
+		"prettier": "^3.8.3",
 		"prettier-plugin-svelte": "^3.5.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
-		"supabase": "^2.84.8",
-		"svelte": "^5.55.1",
+		"supabase": "^2.92.0",
+		"svelte": "^5.55.4",
 		"svelte-check": "^4.4.6",
 		"tailwindcss": "^4.2.2",
-		"typescript": "^6.0.2",
-		"typescript-eslint": "^8.58.0",
+		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.58.2",
 		"unplugin-icons": "^23.0.1",
-		"vite": "^8.0.3"
+		"vite": "^8.0.8"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -51,8 +51,8 @@
 		}
 	},
 	"dependencies": {
-		"@supabase/ssr": "^0.10.0",
-		"@supabase/supabase-js": "^2.101.1",
+		"@supabase/ssr": "^0.10.2",
+		"@supabase/supabase-js": "^2.103.3",
 		"@vercel/analytics": "^2.0.1"
 	}
 }
